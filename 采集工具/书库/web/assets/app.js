@@ -58,7 +58,7 @@ function coverEl(w, withBadge = true) {
 
 /* ---------------- 状态 ---------------- */
 const state = {
-  q: '', source: '', genre: '', tag: '', status: '',
+  q: '', source: '', genre: '', tag: '', char: '', status: '',
   min: '', max: '', sort: 'chars', page: 1, view: 'grid',
 };
 
@@ -68,7 +68,7 @@ async function renderShelf() {
   root.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spinner' })));
   const data = await API('works', {
     q: state.q, source: state.source, genre: state.genre, tag: state.tag,
-    status: state.status, min: state.min, max: state.max,
+    char: state.char, status: state.status, min: state.min, max: state.max,
     sort: state.sort, page: state.page, size: 60,
   });
 
@@ -122,6 +122,7 @@ function chipsEl() {
   for (const v of splitVals(state.source)) items.push(['source', v === '_none' ? '未归类' : v, v]);
   if (state.genre) items.push(['genre', state.genre]);
   for (const v of splitVals(state.tag)) items.push(['tag', v, v]);
+  for (const v of splitVals(state.char)) items.push(['char', `角色：${v}`, v]);
   if (state.status) items.push(['status', state.status]);
   if (state.min) items.push(['min', `≥${fmtWan(+state.min)}字`]);
   if (state.max) items.push(['max', `≤${fmtWan(+state.max)}字`]);
@@ -141,7 +142,7 @@ function chipsEl() {
 }
 
 function resetFilters() {
-  Object.assign(state, { q: '', source: '', genre: '', tag: '', status: '', min: '', max: '' });
+  Object.assign(state, { q: '', source: '', genre: '', tag: '', char: '', status: '', min: '', max: '' });
   state.page = 1;
   syncFilterUI();
   renderShelf();
@@ -151,8 +152,8 @@ function resetFilters() {
 let META = null;
 async function ensureMeta() {
   if (META) return META;
-  const [sources, tags] = await Promise.all([API('sources'), API('tags')]);
-  META = { sources, tags };
+  const [sources, tags, chars] = await Promise.all([API('sources'), API('tags'), API('characters')]);
+  META = { sources, tags, chars };
   return META;
 }
 
@@ -199,6 +200,13 @@ async function openDrawer() {
           oninput: e => { state.max = e.target.value; state.page = 1; renderShelf(); },
         }))),
     h('div', { class: 'field' },
+      h('span', { class: 'label' }, '角色'),
+      h('input', {
+        type: 'search', class: 'char-filter', placeholder: '搜角色名…',
+        oninput: (e) => fillChars(e.target.value.trim()),
+      }),
+      h('div', { class: 'opts charopts' })),
+    h('div', { class: 'field' },
       h('span', { class: 'label' }, '标签'),
       h('div', { class: 'opts' },
         ...meta.tags.slice(0, 40).map(t =>
@@ -213,8 +221,31 @@ async function openDrawer() {
           }, t.name, h('span', { class: 'n', style: 'opacity:.55;margin-left:4px' }, t.count))))),
   );
 
+  fillChars('');
   d.classList.add('open');
   b.classList.add('open');
+}
+
+function fillChars(kw) {
+  const box = $('.charopts');
+  if (!box || !META) return;
+  const picked = splitVals(state.char);
+  let list = META.chars;
+  if (kw) list = list.filter(c => c.name.includes(kw));
+  else list = list.filter(c => c.works >= 2 || picked.includes(c.name));
+  const show = list.slice(0, 60);
+  box.replaceChildren(...show.map(c =>
+    h('button', {
+      class: 'opt',
+      'aria-pressed': picked.includes(c.name),
+      onclick: (e) => {
+        toggleVal('char', c.name);
+        e.currentTarget.setAttribute('aria-pressed', splitVals(state.char).includes(c.name));
+        renderShelf();
+      },
+    }, c.name,
+      h('span', { class: 'n', style: 'opacity:.55;margin-left:4px' }, `${c.works} 部`))));
+  if (!show.length) box.replaceChildren(h('span', { class: 'dimmer' }, '无匹配角色'));
 }
 
 function closeDrawer() {
@@ -396,7 +427,7 @@ async function renderTags() {
             style: 'grid-template-columns:1fr auto;padding:10px 0',
             onclick: (e) => {
               e.preventDefault();
-              Object.assign(state, { page: 1, tag: t.name, source: '', genre: '' });
+              Object.assign(state, { page: 1, tag: t.name, char: '', source: '', genre: '' });
               location.hash = '#/';
               renderShelf();
             },
@@ -423,11 +454,11 @@ async function route() {
 async function renderCats() {
   const root = $('#view');
   root.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spinner' })));
-  const [srcs, tags] = await Promise.all([API('sources'), API('tags')]);
+  const [srcs, tags, chars] = await Promise.all([API('sources'), API('tags'), API('characters')]);
 
   const jump = (patch) => (e) => {
     e.preventDefault();
-    Object.assign(state, { page: 1, q: '', source: '', genre: '', tag: '' }, patch);
+    Object.assign(state, { page: 1, q: '', source: '', genre: '', tag: '', char: '' }, patch);
     location.hash = '#/';
     renderShelf();
   };
@@ -451,6 +482,11 @@ async function renderCats() {
     }))),
     group('按标签', tags.filter(t => t.count >= 5).slice(0, 40).map(t => ({
       name: t.name, note: `${t.count} 部`, patch: { tag: t.name },
+    }))),
+    group('按角色', chars.filter(c => c.works >= 2).slice(0, 60).map(c => ({
+      name: c.name,
+      note: `${c.works} 部${c.leads ? ` · 主角 ${c.leads}` : ''}${c.original ? ' · 原创' : ''}`,
+      patch: { char: c.name },
     }))));
 }
 

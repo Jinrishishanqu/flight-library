@@ -187,6 +187,13 @@ class Handler(BaseHTTPRequestHandler):
                 "WHERE wt.work_id=w.id AND t.name IN (%s))" % ",".join("?" * len(tgs))
             )
             args += tgs
+        chs = [x for x in (q.get("char") or "").split(",") if x]
+        if chs:
+            where.append(
+                "EXISTS (SELECT 1 FROM characters c WHERE c.work_id=w.id "
+                "AND c.name IN (%s))" % ",".join("?" * len(chs))
+            )
+            args += chs
         if q.get("min"):
             where.append("w.char_count >= ?")
             args.append(int(q["min"]))
@@ -297,8 +304,11 @@ class Handler(BaseHTTPRequestHandler):
     def _characters(self, con):
         return [
             dict(r) for r in con.execute(
-                "SELECT name, SUM(mentions) AS m, COUNT(*) AS works FROM characters "
-                "GROUP BY name ORDER BY m DESC LIMIT 80"
+                "SELECT name, SUM(mentions) AS m, COUNT(*) AS works, "
+                "       SUM(CASE WHEN role='主角' THEN 1 ELSE 0 END) AS leads, "
+                "       SUM(CASE WHEN origin='原创' THEN 1 ELSE 0 END) AS original "
+                "FROM characters GROUP BY name "
+                "ORDER BY works DESC, m DESC LIMIT 300"
             )
         ]
 

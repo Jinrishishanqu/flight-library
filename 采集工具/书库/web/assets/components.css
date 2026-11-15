@@ -639,3 +639,18 @@ details.fileinfo pre {
   border-radius: var(--r-full);
   padding: 1px 6px;
 }
+/* 角色筛选：搜索框 + 可滚动选项区 */
+.char-filter {
+  width: 100%; height: 30px; margin: 6px 0 8px;
+  padding: 0 9px;
+  border: 1px solid var(--line); border-radius: var(--r2);
+  background: var(--bg-2); color: var(--fg-1);
+  font: inherit; font-size: .82rem;
+}
+.char-filter:focus-visible { outline: none; border-color: var(--accent); }
+.charopts {
+  max-height: 208px; overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+.charopts .opt { font-size: .78rem; }
