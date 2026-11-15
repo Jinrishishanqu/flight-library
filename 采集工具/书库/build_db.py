@@ -48,9 +48,15 @@ SOURCE_MAP = {
 
 CHAPTER_RE = re.compile(
     r"(?m)^[ \t]*(第[0-9零一二三四五六七八九十百千两]+[章节回卷]|序章|楔子|序言|前言|后记|尾声|终章|番外)"
-    r"[^\r\n]{0,40}$"
+    r"[^\r\n]{0,40}\r?$"
 )
 
+# 章节划分的判定阈值
+MIN_AVG = 30000        # 平均每章超过这个字数 → 认为原文标记只覆盖局部，不采用
+GAP_RATIO = 12.0       # 最大间隔超过中位间隔的这个倍数 → 判定标记断裂
+GAP_ABS = 60000        # 无论如何，出现这么长的一段没有章标记，就认定标记不完整
+MAX_REAL_CHAPTER = 12000  # 真章超过这个长度 → 再按 6000 字细分并打「·续N」
+CHAP_HEAD = re.compile(r"(第[0-9零一二三四五六七八九十百千两]+[章节回卷])(.*)$")
 # 题材关键词 → 标签
 TROPE_HINTS = {
     "双修": "双修", "调教": "调教", "绿帽": "NTR", "ntr": "NTR", "NTR": "NTR",
@@ -130,19 +136,76 @@ def split_long(seg: str, target: int) -> list[str]:
     return out
 
 
+def split_title(line: str) -> tuple[str, str]:
+    """把「第61章升魂丹翌日清晨，阳光……」这样粘连的一行拆成 (标题, 还给正文的余下部分)。
+
+    标题最多取到第一个标点或 24 个字，剩下的必须回到正文，
+    否则正文章节会凭空少掉一段。
+    """
+    m = re.match(
+        r"(第[0-9零一二三四五六七八九十百千两]+[章节回卷][：:、.．\s]*"
+        r"|序章[：:、\s]*|楔子[：:、\s]*|序言[：:、\s]*|前言[：:、\s]*"
+        r"|后记[：:、\s]*|尾声[：:、\s]*|终章[：:、\s]*|番外[：:、\s]*)",
+        line,
+    )
+    head = m.group(1) if m else ""
+    tail = line[len(head):].strip() if head else line.strip()
+    if not tail:
+        return line.strip(), ""
+    cut = re.search(r"[。！？；，、]", tail)
+    if cut:
+        t = tail[: cut.start()].strip()
+        rest = tail[cut.start():].strip()
+    elif len(tail) > 24:
+        t, rest = tail[:24].strip(), tail[24:].strip()
+    else:
+        t, rest = tail.strip(), ""
+    return (head + t).strip(), rest
+
+
 def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
-    """返回 [(title, is_real, content)]。"""
+    """返回 [(title, is_real, content)]。
+
+    优先按原文自带的「第N章」等标记切分；只有当标记覆盖不完整
+    （平均章长过大、或最大间隔远超中位间隔）时才退化为按字数切。
+    """
     marks = list(CHAPTER_RE.finditer(text))
     if len(marks) >= 3:
-        chunks = []
-        for i, m in enumerate(marks):
-            start = m.end()
-            end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
-            body = text[start:end].strip()
-            if body:
-                chunks.append((m.group(0).strip(), 1, body))
-        if len(chunks) >= 3:
-            return chunks
+        gaps = [marks[i + 1].start() - marks[i].end() for i in range(len(marks) - 1)]
+        body_len = len(text) - marks[0].end()
+        avg = body_len / len(marks)
+        med = sorted(gaps)[len(gaps) // 2] if gaps else 0
+        complete = avg <= MIN_AVG and (not gaps or max(gaps) <= max(GAP_RATIO * med, GAP_ABS))
+        if complete:
+            out: list[tuple[str, int, str]] = []
+            # 第一个章标记之前的内容（卷首语、简介、残缺前言）不能丢
+            pre = text[: marks[0].start()].strip()
+            if len(pre) > 80:
+                if len(pre) <= MAX_REAL_CHAPTER:
+                    out.append(("开篇", 0, pre))
+                else:
+                    for k, part in enumerate(split_long(pre, target)):
+                        out.append(("开篇" if k == 0 else f"开篇·续{k + 1}", 0, part))
+            for i, m in enumerate(marks):
+                start = m.end()
+                end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+                raw_line = m.group(0).strip()
+                body = text[start:end]
+                # 标题可能和正文粘在一行，split_title 会把多余部分还给正文
+                title, rest = split_title(raw_line)
+                if rest:
+                    body = rest + "\n" + body
+                body = body.strip()
+                if not body:
+                    continue
+                if len(body) <= MAX_REAL_CHAPTER:
+                    out.append((title, 1, body))
+                else:
+                    for k, part in enumerate(split_long(body, target)):
+                        t = title if k == 0 else f"{title}·续{k + 1}"
+                        out.append((t, 1, part))
+            if len(out) >= 3:
+                return out
 
     lines = text.split("\n")
     chunks, buf, size, idx = [], [], 0, 0

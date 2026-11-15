@@ -83,7 +83,7 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 .venv\Scripts\python.exe 采集工具\校勘\restore_chapter_titles.py --dry
 .venv\Scripts\python.exe 采集工具\校勘\report_structure_issues.py
 
-# 阅读站（486 部 / 3,180 节，含全文检索与角色卡）
+# 阅读站（486 部 / 3,584 节，含全文检索与角色卡）
 启动飞行图书馆.cmd
 & .venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
 & .venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 8   # 重建角色档案
