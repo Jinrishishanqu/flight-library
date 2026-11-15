@@ -654,3 +654,44 @@ details.fileinfo pre {
   scrollbar-width: thin;
 }
 .charopts .opt { font-size: .78rem; }
+/* ============================================================
+   详情页内容带
+   索引页（书架/搜索/分类/标签）用满宽网格；
+   详情页是内容页，收窄到 900px 居中，和书架区分层级。
+   ============================================================ */
+#view.detail {
+  max-width: 1040px;
+  margin-inline: auto;
+  padding-inline: var(--s5);
+}
+
+/* 顶部状态条跟随详情页内容带，避免「条在 24px、内容在 80px」的错位 */
+body.is-detail .statline {
+  max-width: 1040px;
+  margin-inline: auto;
+}
+
+/* 简介：40em ≈ 40 汉字/行（中文舒适行长 30–40 字），在内容带内居中 */
+#view.detail .work-summary {
+  max-width: 40em;
+  margin-top: var(--s5);
+  margin-inline: auto;
+}
+
+/* 目录：等宽多列，条目内的「第N节 …… 6158」不再被拉成两大截 */
+#view.detail .toc {
+  columns: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 0 var(--s5);
+}
+#view.detail .toc a { padding: 7px 0; }
+
+/* 角色卡：900 内自然排成 3 列（minmax 238 → 268），上限不再拉满整屏 */
+#view.detail .cast { grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); }
+
+@media (max-width: 640px) {
+  #view.detail { padding-inline: 16px; }
+  #view.detail .toc { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0 18px; }
+  #view.detail .work-hero { grid-template-columns: 120px 1fr; gap: 18px; }
+}

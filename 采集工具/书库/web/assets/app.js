@@ -443,6 +443,11 @@ async function route() {
   const qs = new URLSearchParams(query || '');
   $$('[data-nav]').forEach(a => a.setAttribute('aria-current', a.dataset.nav === path ? 'true' : 'false'));
 
+  // 详情页是「内容页」，收窄成居中内容带；其余是索引页，用满宽网格
+  const isDetail = path.startsWith('/work/');
+  $('#view').className = isDetail ? 'detail' : '';
+  document.body.classList.toggle('is-detail', isDetail);
+
   if (path.startsWith('/work/')) return renderWork(path.split('/')[2]);
   if (path === '/search') return renderSearch(qs.get('q') || '');
   if (path === '/tags') return renderTags();
