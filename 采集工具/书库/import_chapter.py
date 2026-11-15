@@ -270,7 +270,7 @@ def apply_to_work(conn, work_id: int, path: Path, text: str, chunks) -> dict:
     conn.execute("""UPDATE works SET
         char_count    = (SELECT COALESCE(SUM(char_count),0) FROM chapters WHERE work_id=?),
         chapter_count = (SELECT COUNT(*) FROM chapters WHERE work_id=?),
-        reading_minutes = (SELECT COALESCE(SUM(char_count),0)/450 FROM chapters WHERE work_id=?),
+        reading_minutes = (SELECT COALESCE(SUM(char_count),0)/400 FROM chapters WHERE work_id=?),
         updated_at = datetime('now')
         WHERE id=?""", (work_id, work_id, work_id, work_id))
 

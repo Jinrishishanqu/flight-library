@@ -124,6 +124,8 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 & .venv\Scripts\python.exe 采集工具\书库\update_source_works.py --apply
 & .venv\Scripts\python.exe 采集工具\书库\rebuild_chapters.py --dry   # 章节按原文「第N章」重切
 & .venv\Scripts\python.exe 采集工具\书库\refresh_fts.py              # 改库后重灌检索索引
+& .venv\Scripts\python.exe 采集工具\书库\check_db.py                # 一致性体检
+& .venv\Scripts\python.exe 采集工具\书库\check_db.py --fix-chars     # 字数统一为正文之和
 ```
 
 ## 阅读站

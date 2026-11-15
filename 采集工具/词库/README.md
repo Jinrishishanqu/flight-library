@@ -15,6 +15,9 @@
 | `variants.json` | 打码/变形正则清单（机器可读） | JSON |
 | `symbols.json` | 符号体例规范（引号/破折号/省略号…） | JSON |
 | `lib.py` | 统一加载器 | Python |
+| `原作信息.tsv` | **原作角色权威表**：性别、别名、身份 | `原作<TAB>角色<TAB>性别<TAB>别名<TAB>身份<TAB>备注` |
+| `genders.txt` | 早期性别人工表（`原作信息.tsv` 的补充，已降级为兼容） | `名字<TAB>性别<TAB>备注` |
+| `confusables.txt` | UTS #39 同形字映射（6,712 条，体检用，不参与替换） | Unicode 官方格式 |
 
 ## 为什么按这个结构分
 
@@ -63,4 +66,20 @@
 - `采集工具\校勘\fix_round2.py` —— 断词还原（按字符偏移精确替换）+ 括号清理
 - `采集工具\校勘\scan_high.py` —— 高置信断词复扫
 - `采集工具\校勘\scan_variant.py` —— 28 种变形模式复扫
+- `采集工具\校勘\clean_text.py` —— ftfy（关掉 fix_character_width）+ 零宽/控制符清理 + 字符体检
+- `采集工具\校勘\confusable_scan.py` —— UTS #39 同形字扫描（用 `confusables.txt`）
+- `采集工具\校勘\probe_encoding.py` —— 编码判决对比（严格解码 vs chardet vs charset-normalizer）
+- `采集工具\校勘\scan_mojibake.py` —— 乱码六类特征扫描
+- `采集工具\校勘\fix_wide_ascii.py` / `fix_fullwidth_quotes.py` —— 全角字母数字、全角引号 `＂` 清理
 - `采集工具\书库\build_db.py` —— 用本词库抽角色、标签、摘要
+- `采集工具\书库\build_characters.py` —— 读 `原作信息.tsv`（性别/别名）+ hanlp NER 出候选
+
+## 事实校验过的边界
+
+| 结论 | 数据 |
+|---|---|
+| 全库无伪汉字水印 | `confusable_scan.py` 扫 486 文件，207 种可疑字符，`skeleton_is_han` 全 False |
+| 校勘版零乱码 | U+FFFD 0 / cp1252 乱码 0 / 经典 GBK 乱码 0 / 特殊空格 0；仅 7 个零宽字符 |
+| ftfy 默认会破坏中文 | `fix_text()` 把 `：``？``（）` 全压半角，必须 `fix_character_width=False` |
+| ngender 不可靠 | 40 个已知角色 6 错，`比比东` 置信度 0.918 仍判男 → 只做原创角色先验 |
+
