@@ -43,9 +43,20 @@ def main():
     dry = "--dry" in sys.argv
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
+    # 只重建「独立作品」：merged_into 非空的是已并入副本，
+    # 「被别的作品并入的主本」也不能按原文重建 —— 会丢掉子本追加进来的章节。
     works = con.execute(
-        "SELECT id,title,path_canon,chapter_count,char_count FROM works ORDER BY id"
+        "SELECT id,title,path_canon,chapter_count,char_count FROM works w "
+        "WHERE merged_into IS NULL "
+        "  AND NOT EXISTS (SELECT 1 FROM works x WHERE x.merged_into = w.id) "
+        "ORDER BY id"
     ).fetchall()
+    skipped = con.execute(
+        "SELECT COUNT(*) FROM works w WHERE EXISTS "
+        "(SELECT 1 FROM works x WHERE x.merged_into = w.id)"
+    ).fetchone()[0]
+    if skipped:
+        print(f"跳过 {skipped} 部「已合并主本」：按原文重建会丢掉子本追加的章节")
 
     rows, changed = [], 0
     for w in works:

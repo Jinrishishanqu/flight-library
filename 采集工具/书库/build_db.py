@@ -60,6 +60,8 @@ GAP_RATIO = 12.0       # 最大间隔超过中位间隔的这个倍数 → 判�
 GAP_ABS = 60000        # 无论如何，出现这么长的一段没有章标记，就认定标记不完整
 MAX_REAL_CHAPTER = 12000  # 真章超过这个长度 → 再按 6000 字细分并打「·续N」
 CHAP_HEAD = re.compile(r"(第[0-9零一二三四五六七八九十百千两]+[章节回卷])(.*)$")
+# 「第N卷」= 分卷标记；卷内章号各自从 1 开始，排序时必须先看卷号
+VOL_RE = re.compile(r"第[0-9零一二三四五六七八九十百千两]+卷")
 MIN_BODY = 200        # 真章正文短于这个字数 → 视为目录行/章尾注，并入下一节
 # 题材关键词 → 标签
 TROPE_HINTS = {
@@ -192,12 +194,65 @@ def chap_no(title: str) -> int | None:
     return total + cur
 
 
+def regressions(nos: list[int | None]) -> int:
+    """章号序列里「后一个比前一个小」的次数。"""
+    return sum(1 for a, b in zip(nos, nos[1:])
+               if a is not None and b is not None and b < a)
+
+
+def base_title(t: str) -> str:
+    """去掉 split_long 追加的「·续N」后缀 —— 它不改变所属章号。"""
+    return re.sub(r"·续\d+$", "", t or "")
+
+
 def order_by_chapter(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, str]]:
-    """文件内章号乱序时按章号稳定排序；本来单调递增就原样返回。"""
-    nos = [chap_no(t) if r else None for t, r, _ in chunks]
+    """只在「排序确实能修好顺序」时排序，其余一律保持原文顺序。
+
+    护栏（都踩过坑才加）：
+    1) 出现「第N卷」→ 原文是分卷结构，每卷章号各自从 1 开始，排序会把各卷
+       的同号章交错拼在一起（《诛仙之青云淫徒》曾因此被搅成六本）。
+    2) 本来就没有回退 → 不需要动。
+    3) 试排之后仍然有回退（如「第三回」这类非章标记混入、或两套序列并存）
+       → 说明章号不可信，放弃排序、保持原文顺序。
+    只有「排序能把回退清零」才是真的需要且可以修的情形。
+    """
+    nos = [chap_no(base_title(t)) if r else None for t, r, _ in chunks]
     known = [n for n in nos if n]
     if len(known) < 3:
         return chunks
+    if any(VOL_RE.search(t) for t, _, _ in chunks):
+        return chunks                # 分卷结构，原文顺序即正确
+    if regressions(nos) == 0:
+        return chunks                # 已经有序
+    idx = sorted(range(len(chunks)), key=lambda i: _sort_key(nos, chunks, i))
+    if regressions([nos[i] for i in idx]) > 0:
+        return chunks                # 排了也修不好，说明章号本身不可信
+    return [chunks[i] for i in idx]
+
+
+PRE_HEAD = re.compile(r"开篇|序章|楔子|前言|序言|引子")
+POST_HEAD = re.compile(r"后记|尾声|终章|番外|完本")
+
+
+def _sort_key(nos, chunks, i):
+    """开篇类排最前、后记类排最后，无章号的居中靠后。"""
+    n = nos[i]
+    t = chunks[i][0] or ""
+    if n is None:
+        if PRE_HEAD.search(t):
+            return (-2, 0, i)
+        if POST_HEAD.search(t):
+            return (10 ** 9, 0, i)
+        return (10 ** 8, 0, i)
+    return (0, n, i)
+    nos = [chap_no(base_title(t)) if r else None for t, r, _ in chunks]
+    known = [n for n in nos if n]
+    if len(known) < 3:
+        return chunks
+    if any(VOL_RE.search(t) for t, _, _ in chunks):
+        return chunks                # 分卷结构，原文顺序即正确
+    if len(known) != len(set(known)):
+        return chunks                # 章号重复，排序会搅碎
     if all(a is None or b is None or a <= b for a, b in zip(nos, nos[1:])):
         return chunks                # 已经有序
     idx = sorted(range(len(chunks)), key=lambda i: (nos[i] is None, nos[i] or 0, i))
@@ -209,16 +264,35 @@ def compact_short(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, st
 
     这类节的内容通常只有十几到几十个字，单独成节会让目录出现一堆空壳。
     并进下一节开头；若是最后一节则接到上一节末尾。
+
+    例外：「第N卷……」这类纯卷名行不丢，而是变成下一节标题的前缀
+    （`第二卷天书和美人 · 第1章神秘美妇`），否则分卷结构就看不见了。
     """
     out: list[tuple[str, int, str]] = []
     carry = ""
+    vol = ""
+    last_no: int | None = None
     for title, is_real, body in chunks:
+        if is_real and VOL_RE.search(title) and len(body) < MIN_BODY:
+            vol = title.strip()
+            continue                      # 卷名挂起，等下一节
         if is_real and len(body) < MIN_BODY:
             carry += ("\n" + body) if carry else body
             continue
         if carry:
             body = carry + "\n" + body
             carry = ""
+        no = chap_no(title) if is_real else None
+        if vol and no is not None and last_no is not None and no < last_no:
+            # 章号回退 → 已进入下一卷，但卷名行还没出现（原文常把卷名
+            # 放在该卷第一章之后），此时不硬标上一卷的名字
+            vol = ""
+        if vol:
+            title = f"{vol} · {title}" if title else vol
+            # 卷名不在此清空：同一卷内的后续章节继续带前缀，
+            # 直到出现下一个「第N卷」行（原文常有卷名行重复，自然无害）
+        if no is not None:
+            last_no = no
         out.append((title, is_real, body))
     if carry:
         if out:
@@ -263,6 +337,10 @@ def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
                     body = rest + "\n" + body
                 body = body.strip()
                 if not body:
+                    # 卷名行后面常常直接跟下一章标题，正文为空 —— 不能丢，
+                    # 交给 compact_short 挂到下一节标题上
+                    if VOL_RE.search(title):
+                        out.append((title, 1, ""))
                     continue
                 if len(body) <= MAX_REAL_CHAPTER:
                     out.append((title, 1, body))
