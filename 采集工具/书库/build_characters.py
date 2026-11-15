@@ -61,6 +61,19 @@ TITLES = [
     "封尊", "天尊", "魔尊", "妖王", "龙王", "斗帝", "斗圣", "斗尊", "斗宗",
 ]
 
+# 泛称：谁都能被这么叫，不能当角色卡
+HONORIFIC = {
+    "师伯", "师叔", "师公", "师兄", "师姐", "师父", "师尊", "师弟", "师妹",
+    "长老", "宗主", "掌门", "陛下", "殿下", "大人", "前辈", "道友", "弟子",
+    "少侠", "姑娘", "公子", "小姐", "夫人", "老板", "掌柜", "伙计",
+}
+
+# 势力/地名后缀：鬼王宗、小竹峰、合欢宗这类一律不是角色
+FACTION_SUFFIX = (
+    "宗", "门", "派", "峰", "阁", "殿", "宫", "会", "帮", "教", "堂", "楼",
+    "山庄", "学院", "城", "族", "盟", "寨", "寺", "观", "府",
+)
+
 SENT_SPLIT = re.compile(r"(?<=[。！？…」』])")
 DESC_HINT = re.compile(r"(?:是|乃|身为|作为|名叫|叫做|本是|曾是|原是|成了|成为|生得|长得|号称|人称|被称)")
 BAD_HEAD = set("的地得着了过而则就都也又还且并但却是在被把让给对向从于之其此很更最与和"
@@ -177,6 +190,9 @@ NOT_PERSON = {
     "金帝",
     "慕兰",
     "恩哈",
+    # 门派/境界的简称会被子串规则带走（青云 ⊂ 青云门、玉清 ⊂ 玉清境）
+    "青云门", "青云山", "青云观", "天音寺", "焚香谷", "鬼王宗", "合欢派", "小竹峰",
+    "玉清境", "上清境", "太清境", "玉清", "上清", "太清",
     # 常被误当成名字的叙述词（闻言 = hearing this）
     "闻言",
     "闻言便",
@@ -687,6 +703,41 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
         seen_d.add(w)
         hits.append((n, w))
     hits.sort(reverse=True)
+
+    # ---- 角色候选清洗（三轮，都是看过成品里的假卡才加的）----
+    # 1) 泛称 / 势力后缀 / 子串污染
+    np_set = {x for x in NOT_PERSON if len(x) >= 2}
+    cleaned = []
+    for n, w in hits:
+        if w in HONORIFIC:                               # 师伯 / 师公 / 掌门
+            continue
+        if w.endswith(FACTION_SUFFIX):                   # 鬼王宗 / 小竹峰 / 合欢宗
+            continue
+        if w[-1] in "篇章节卷部集传":                     # 章名残留
+            continue
+        if len(w) >= 2 and any(w in x for x in np_set if w != x):
+            continue                                     # 青云 ⊂ 青云门
+        cleaned.append((n, w))
+    hits = cleaned
+
+    # 2) 后缀归并：短名是长名的后缀、且长名次数占绝对多数 → 并入长名
+    #    （小凡 193 : 张小凡 8858、雪琪 87 : 陆雪琪 1692）
+    by_len = sorted(hits, key=lambda x: (-len(x[1]), -x[0]))
+    absorbed: dict[str, int] = {}
+    drop: set[str] = set()
+    for n, w in hits:
+        if w in drop or len(w) < 2:
+            continue
+        for n2, o in by_len:
+            if o != w and len(o) > len(w) and o.endswith(w) and n2 >= n * 2:
+                absorbed[o] = absorbed.get(o, 0) + n
+                drop.add(w)
+                break
+    if drop:
+        hits = [(n + absorbed.get(w, 0), w) for n, w in hits if w not in drop]
+        for w in drop:
+            first_idx.pop(w, None)
+        hits.sort(reverse=True)
 
     # 出场范围：先把候选按次数排序（多算一些），算 cover / span / chap 再定主角配角
     cand = hits[:max(limit * 3, 80)]
