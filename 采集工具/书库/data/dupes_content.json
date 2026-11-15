@@ -1,0 +1,72 @@
+[
+ {
+  "inner": 351,
+  "outer": 328,
+  "contain": 1.0,
+  "jaccard": 0.3472,
+  "inner_chars": 2224,
+  "outer_chars": 6375,
+  "inner_title": "笑红尘与江楠楠",
+  "outer_title": "江楠楠"
+ },
+ {
+  "inner": 88,
+  "outer": 60,
+  "contain": 0.996,
+  "jaccard": 0.7481,
+  "inner_chars": 3075,
+  "outer_chars": 4080,
+  "inner_title": "牧尘与灵溪",
+  "outer_title": "大主宰灵溪洛离"
+ },
+ {
+  "inner": 77,
+  "outer": 58,
+  "contain": 0.9882,
+  "jaccard": 0.5786,
+  "inner_chars": 4669,
+  "outer_chars": 7842,
+  "inner_title": "武盈盈",
+  "outer_title": "大主宰武盈盈"
+ },
+ {
+  "inner": 61,
+  "outer": 106,
+  "contain": 0.9798,
+  "jaccard": 0.6658,
+  "inner_chars": 3882,
+  "outer_chars": 5501,
+  "inner_title": "大主宰灵路",
+  "outer_title": "牧尘戏洛璃"
+ },
+ {
+  "inner": 25,
+  "outer": 45,
+  "contain": 0.8909,
+  "jaccard": 0.7867,
+  "inner_chars": 4891,
+  "outer_chars": 5009,
+  "inner_title": "dzzxs",
+  "outer_title": "大主宰之洛璃与血魔仨皇子"
+ },
+ {
+  "inner": 65,
+  "outer": 25,
+  "contain": 0.8807,
+  "jaccard": 0.7831,
+  "inner_chars": 4858,
+  "outer_chars": 4891,
+  "inner_title": "大主宰血神族",
+  "outer_title": "dzzxs"
+ },
+ {
+  "inner": 45,
+  "outer": 25,
+  "contain": 0.8706,
+  "jaccard": 0.7867,
+  "inner_chars": 5009,
+  "outer_chars": 4891,
+  "inner_title": "大主宰之洛璃与血魔仨皇子",
+  "outer_title": "dzzxs"
+ }
+]

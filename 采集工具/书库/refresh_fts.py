@@ -21,7 +21,8 @@ def main():
         "title, body_bi, work_title, content='', tokenize='unicode61 remove_diacritics 0')"
     )
     rows = con.execute(
-        "SELECT c.id, c.title, c.body_bi, w.title FROM chapters c JOIN works w ON w.id=c.work_id"
+        "SELECT c.id, c.title, c.body_bi, w.title FROM chapters c JOIN works w ON w.id=c.work_id "
+        "WHERE w.merged_into IS NULL"
     ).fetchall()
     con.executemany(
         "INSERT INTO chapters_fts(rowid,title,body_bi,work_title) VALUES (?,?,?,?)",

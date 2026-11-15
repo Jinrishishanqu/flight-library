@@ -173,7 +173,7 @@ def find_candidates(conn, path: Path, text: str, guard: list[str]) -> list[dict]
         bump(r["work_id"], 90.0, "开篇 200 字相同")
 
     # 3) 书名归一匹配
-    for r in conn.execute("SELECT id, title FROM works"):
+    for r in conn.execute("SELECT id, title FROM works WHERE merged_into IS NULL"):
         if ntitle and norm_title(r["title"]) == ntitle:
             bump(r["id"], 20.0, f"书名完全匹配《{r['title']}》")
         elif ntitle and (ntitle in norm_title(r["title"]) or norm_title(r["title"]) in ntitle):
@@ -210,7 +210,8 @@ def find_candidates(conn, path: Path, text: str, guard: list[str]) -> list[dict]
             best = []
             for r in conn.execute(
                 "SELECT id, title, char_count FROM works"
-                " WHERE char_count>0 ORDER BY abs(char_count-?) LIMIT 40",
+                " WHERE char_count>0 AND merged_into IS NULL"
+                " ORDER BY abs(char_count-?) LIMIT 40",
                 (len(text),)):
                 sample = conn.execute(
                     "SELECT body_bi FROM chapters WHERE work_id=? LIMIT 8", (r["id"],)

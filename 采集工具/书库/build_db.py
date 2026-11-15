@@ -57,6 +57,7 @@ GAP_RATIO = 12.0       # 最大间隔超过中位间隔的这个倍数 → 判�
 GAP_ABS = 60000        # 无论如何，出现这么长的一段没有章标记，就认定标记不完整
 MAX_REAL_CHAPTER = 12000  # 真章超过这个长度 → 再按 6000 字细分并打「·续N」
 CHAP_HEAD = re.compile(r"(第[0-9零一二三四五六七八九十百千两]+[章节回卷])(.*)$")
+MIN_BODY = 200        # 真章正文短于这个字数 → 视为目录行/章尾注，并入下一节
 # 题材关键词 → 标签
 TROPE_HINTS = {
     "双修": "双修", "调教": "调教", "绿帽": "NTR", "ntr": "NTR", "NTR": "NTR",
@@ -163,6 +164,68 @@ def split_title(line: str) -> tuple[str, str]:
     return (head + t).strip(), rest
 
 
+CN_DIGIT = {"零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
+            "六": 6, "七": 7, "八": 8, "九": 9}
+CN_UNIT = {"十": 10, "百": 100, "千": 1000}
+
+
+def chap_no(title: str) -> int | None:
+    """从「第十二章xxx」里取章号；取不到返回 None。"""
+    m = CHAP_HEAD.match(title or "")
+    if not m:
+        return None
+    num = m.group(1)[1:-1]          # 去掉开头「第」和结尾「章」
+    if num.isdigit():
+        return int(num)
+    total, cur = 0, 0
+    for ch in num:
+        if ch in CN_DIGIT:
+            cur = CN_DIGIT[ch]
+        elif ch in CN_UNIT:
+            total += (cur or 1) * CN_UNIT[ch]
+            cur = 0
+        else:
+            return None
+    return total + cur
+
+
+def order_by_chapter(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, str]]:
+    """文件内章号乱序时按章号稳定排序；本来单调递增就原样返回。"""
+    nos = [chap_no(t) if r else None for t, r, _ in chunks]
+    known = [n for n in nos if n]
+    if len(known) < 3:
+        return chunks
+    if all(a is None or b is None or a <= b for a, b in zip(nos, nos[1:])):
+        return chunks                # 已经有序
+    idx = sorted(range(len(chunks)), key=lambda i: (nos[i] is None, nos[i] or 0, i))
+    return [chunks[i] for i in idx]
+
+
+def compact_short(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, str]]:
+    """把过短的「章节」（目录行、章尾注如「第二章结束」）并进相邻节。
+
+    这类节的内容通常只有十几到几十个字，单独成节会让目录出现一堆空壳。
+    并进下一节开头；若是最后一节则接到上一节末尾。
+    """
+    out: list[tuple[str, int, str]] = []
+    carry = ""
+    for title, is_real, body in chunks:
+        if is_real and len(body) < MIN_BODY:
+            carry += ("\n" + body) if carry else body
+            continue
+        if carry:
+            body = carry + "\n" + body
+            carry = ""
+        out.append((title, is_real, body))
+    if carry:
+        if out:
+            t, r, b = out[-1]
+            out[-1] = (t, r, b + "\n" + carry)
+        else:
+            out.append(("正文", 0, carry))
+    return out
+
+
 def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
     """返回 [(title, is_real, content)]。
 
@@ -205,7 +268,7 @@ def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
                         t = title if k == 0 else f"{title}·续{k + 1}"
                         out.append((t, 1, part))
             if len(out) >= 3:
-                return out
+                return order_by_chapter(compact_short(out))
 
     lines = text.split("\n")
     chunks, buf, size, idx = [], [], 0, 0

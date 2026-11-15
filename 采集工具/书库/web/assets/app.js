@@ -263,6 +263,14 @@ async function renderWork(id) {
   root.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spinner' })));
   const [w, chs] = await Promise.all([API('works/' + id), API(`works/${id}/chapters`)]);
   if (w.error) { root.replaceChildren(h('div', { class: 'empty' }, '作品不存在')); return; }
+  if (w.merged_into) {
+    const pw = await API('works/' + w.merged_into);
+    root.replaceChildren(h('div', { class: 'empty' },
+      h('p', {}, `《${w.title}》已并入《${pw.title || ('#' + w.merged_into)}》，不再单独展示。`),
+      h('a', { class: 'btn btn-primary', href: `#/work/${w.merged_into}` },
+        `去看《${pw.title || '合并后的作品'}》`)));
+    return;
+  }
 
   const tags = JSON.parse(w.tags || '[]');
   const first = chs[0];

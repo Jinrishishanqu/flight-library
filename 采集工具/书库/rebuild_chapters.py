@@ -120,7 +120,8 @@ def main():
     con.executemany(
         "INSERT INTO chapters_fts(rowid,title,body_bi,work_title) VALUES (?,?,?,?)",
         [(r[0], bigram_cn(r[1] or ""), r[2], bigram_cn(r[3] or "")) for r in fts_rows],
-    )    con.execute("INSERT INTO chapters_fts(chapters_fts) VALUES('optimize')")
+    )
+    con.execute("INSERT INTO chapters_fts(chapters_fts) VALUES('optimize')")
     con.commit()
     tot = con.execute("SELECT COUNT(*) FROM chapters").fetchone()[0]
     real = con.execute("SELECT COUNT(*) FROM chapters WHERE is_real_title=1").fetchone()[0]

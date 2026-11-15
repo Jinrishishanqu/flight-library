@@ -145,7 +145,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _stats(self, con):
         r = con.execute(
-            "SELECT COUNT(*), SUM(char_count), SUM(chapter_count) FROM works"
+            "SELECT COUNT(*), SUM(char_count), SUM(chapter_count) FROM works "
+            "WHERE merged_into IS NULL"
         ).fetchone()
         return {
             "works": r[0], "chars": r[1] or 0, "chapters": r[2] or 0,
@@ -159,12 +160,15 @@ class Handler(BaseHTTPRequestHandler):
             {"name": r[0] or "未归类", "works": r[1], "chars": r[2] or 0}
             for r in con.execute(
                 "SELECT source_work, COUNT(*), SUM(char_count) FROM works "
+                "WHERE merged_into IS NULL "
                 "GROUP BY source_work ORDER BY 3 DESC"
             )
         ]
 
     def _works(self, con, q):
         where, args = ["1=1"], []
+        if q.get("merged") != "1":
+            where.append("w.merged_into IS NULL")
         kw = q.get("q", "").strip()
         if kw:
             where.append("(w.title LIKE ? OR w.author LIKE ? OR w.summary LIKE ? OR w.summary_ai LIKE ?)")
