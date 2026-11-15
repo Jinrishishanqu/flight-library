@@ -33,3 +33,7 @@ Desktop.ini
 *.log
 _t.*
 .tmp*
+_tmp_bio/
+_tmp_*
+采集工具/书库/_tmp_*.py
+采集工具/书库/_bio*_dump.py
