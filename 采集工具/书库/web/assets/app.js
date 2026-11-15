@@ -59,7 +59,8 @@ function coverEl(w, withBadge = true) {
 /* ---------------- 状态 ---------------- */
 const state = {
   q: '', source: '', genre: '', tag: '', char: '', status: '',
-  min: '', max: '', sort: 'chars', page: 1, view: 'grid',
+  min: '', max: '', sort: 'chars', page: 1,
+  view: localStorage.getItem('shelf_view') || 'grid',
 };
 
 /* ---------------- 书架 ---------------- */
@@ -85,7 +86,7 @@ async function renderShelf() {
       ...[['grid', '网格'], ['list', '列表']].map(([k, t]) =>
         h('button', {
           'aria-pressed': state.view === k,
-          onclick: () => { state.view = k; renderShelf(); },
+          onclick: () => { state.view = k; localStorage.setItem('shelf_view', k); renderShelf(); },
         }, t))),
     h('button', { class: 'btn', onclick: () => openDrawer() }, '筛选'),
   );
@@ -101,14 +102,27 @@ async function renderShelf() {
           h('span', {}, '·'),
           h('span', {}, w.chapter_count + ' 节')))));
   } else {
-    list = h('div', { class: 'list' }, ...data.items.map(w =>
-      h('a', { class: 'row', href: `#/work/${w.id}` },
-        h('div', {},
-          h('div', { class: 'row-title' }, w.title),
+    list = h('div', { class: 'list' }, ...data.items.map(w => {
+      const tags = J(w.tags) || [];
+      const cast = (w.cast || '').split('、').filter(Boolean);
+      return h('a', { class: 'row', href: `#/work/${w.id}` },
+        h('div', { class: 'row-main' },
+          h('div', { class: 'row-head' },
+            h('span', { class: 'row-title' }, w.title),
+            w.status ? h('span', { class: 'row-badge' }, w.status) : null),
           h('div', { class: 'row-sub' },
-            [w.source_work, w.author, w.genre, w.status].filter(Boolean).join(' · '))),
-        h('div', { class: 'row-num' }, fmtWan(w.char_count)),
-        h('div', { class: 'row-num' }, w.chapter_count + ' 节'))));
+            [w.source_work || '未归类', w.author || '佚名', w.genre].filter(Boolean).join(' · ')),
+          w.summary ? h('p', { class: 'row-desc' }, w.summary) : null,
+          tags.length ? h('div', { class: 'row-tags' },
+            ...tags.slice(0, 7).map(t => h('span', { class: 'row-tag' }, t))) : null,
+          cast.length ? h('div', { class: 'row-cast' },
+            h('span', { class: 'row-cast-k' }, '角色'),
+            h('span', {}, cast.join('、'))) : null),
+        h('div', { class: 'row-side' },
+          h('div', { class: 'row-num' }, fmtWan(w.char_count) + '字'),
+          h('div', { class: 'row-dim' }, w.chapter_count + ' 节'),
+          h('div', { class: 'row-dim' }, (w.reading_minutes || 0) + ' 分钟')));
+    }));
   }
 
   root.replaceChildren(head, chipsEl(), list);

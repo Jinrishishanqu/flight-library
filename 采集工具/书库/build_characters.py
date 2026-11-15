@@ -132,12 +132,64 @@ def load_guard() -> list[str]:
 CANON_FILE = ROOT / "采集工具" / "词库" / "原作信息.tsv"
 # guard.txt 同时承担「专名保护」，里面混着等级/势力词，建卡时要剔掉
 NOT_PERSON = {
-    "斗者", "斗师", "大斗师", "斗王", "斗皇", "斗宗", "斗尊", "斗圣", "斗帝",
-    "魂师", "魂尊", "魂宗", "魂王", "魂帝", "魂圣", "魂斗罗", "封号斗罗",
-    "魂环", "武魂", "魂骨", "斗气", "魂力",
-    # 常被误当成名字的叙述词（"闻言"= hearing this）
-    "闻言", "闻言便", "闻言后", "众人", "众人皆", "所有人", "那人", "此人", "来人",
-    "少年", "少女", "老者", "青年", "男子", "女子", "妇人", "汉子", "仆从", "侍卫",
+    "斗者",
+    "斗师",
+    "大斗师",
+    "斗王",
+    "斗皇",
+    "斗宗",
+    "斗尊",
+    "斗圣",
+    "斗帝",
+    "魂师",
+    "魂尊",
+    "魂宗",
+    "魂王",
+    "魂帝",
+    "魂圣",
+    "魂斗罗",
+    "封号斗罗",
+    "魂环",
+    "武魂",
+    "魂骨",
+    "斗气",
+    "魂力",
+    # 常被误当成名字的叙述词（闻言 = hearing this）
+    "闻言",
+    "闻言便",
+    "闻言后",
+    "众人",
+    "众人皆",
+    "所有人",
+    "那人",
+    "此人",
+    "来人",
+    "少年",
+    "少女",
+    "老者",
+    "青年",
+    "男子",
+    "女子",
+    "妇人",
+    "汉子",
+    "仆从",
+    "侍卫",
+    "迦南",
+    "加玛",
+    "云岚宗",
+    "云岚",
+    "云宗主",
+    "少宗主",
+    "妮子",
+    "萧家",
+    "纳兰",
+    "云山",
+    "米特尔",
+    "加列",
+    "奥巴",
+    "帝都",
+    "学院",
+    "家族",
 }
 GENDERS_FILE = ROOT / "采集工具" / "词库" / "genders.txt"
 KNOWN_GENDER: dict[str, str] = {}
@@ -582,13 +634,31 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
     orig = {w for _, w in hits if w in CANON_WORK or w in guard_set}
 
     # 通用人名发现 = 作者原创角色（不在 guard 里的）
-    if find_candidates:
+    # 首选 hanlp NER（实测在手写规则的漏报面全中），失败才退回手写规则
+    disc = []
+    _pers: dict[str, int] = {}
+    try:
+        from ner_hanlp import persons_of
+        _pers = dict(persons_of(wid, full))
+    except Exception as e:                               # pragma: no cover
+        print(f"  [warn] hanlp 不可用（{type(e).__name__}: {e}），退回手写规则")
+    if _pers:
+        # hanlp 给的候选按正名归并（嫣然 → 纳兰嫣然 之类靠 ALIAS2CANON）
+        merged: dict[str, int] = {}
+        for w, n in _pers.items():
+            canon = ALIAS2CANON.get(w, w)
+            merged[canon] = merged.get(canon, 0) + n
+        disc = sorted(merged.items(), key=lambda x: -x[1])
+        disc = [(n, w) for w, n in disc if w not in orig]
+    elif find_candidates:
         disc = [(n, w) for n, w in find_candidates(full, max(limit * 3, 60))
                 if w not in orig]
-    else:
-        disc = []
     seen_d = set()
     for n, w in disc:
+        if w in NOT_PERSON:                              # 势力/地名/泛称
+            continue
+        if w[-1] in "篇章节卷部集传":                     # 章名残留（迦南篇 / 第二卷）
+            continue
         if any(w != o and (o.startswith(w) or w.startswith(o)) for o in orig | seen_d):
             continue
         seen_d.add(w)
@@ -636,6 +706,11 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
                for r in con.execute(
                    "SELECT name,bio,bio_at FROM characters WHERE work_id=?", (wid,))
                if r["bio"] and r["bio"].strip()}
+    # 旧记录里已经判定过的性别（非「不明」）优先沿用，避免重建把已知信息抹掉
+    old_gender = {r["name"]: r["gender"]
+                  for r in con.execute(
+                      "SELECT name,gender FROM characters WHERE work_id=?", (wid,))
+                  if r["gender"] and r["gender"] != "不明"}
 
     con.execute("DELETE FROM characters WHERE work_id=?", (wid,))
     n_done = 0
@@ -646,7 +721,7 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
         for p in para_of[name][:400]:
             sents_para.extend(SENT_SPLIT.split(p))
 
-        gender = KNOWN_GENDER.get(name) or guess_gender(full, name)
+        gender = KNOWN_GENDER.get(name) or old_gender.get(name) or guess_gender(full, name)
         if gender == "男":
             looks_kw, fig_kw = LOOKS_M, FIGURE_M
             alt = (LOOKS_F, FIGURE_F)

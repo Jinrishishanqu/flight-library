@@ -222,7 +222,12 @@ class Handler(BaseHTTPRequestHandler):
         total = con.execute(f"SELECT COUNT(*) FROM works w WHERE {wsql}", args).fetchone()[0]
         rows = con.execute(
             f"""SELECT w.id,w.title,w.author,w.genre,w.source_work,w.char_count,
-                       w.chapter_count,w.reading_minutes,COALESCE(w.summary_ai,w.summary) AS summary,w.tags,w.status
+                       w.chapter_count,w.reading_minutes,COALESCE(w.summary_ai,w.summary) AS summary,w.tags,w.status,
+                       w.created_at,
+                       (SELECT GROUP_CONCAT(x,'、') FROM (
+                           SELECT name AS x FROM characters
+                           WHERE work_id=w.id ORDER BY score DESC, mentions DESC LIMIT 4
+                       )) AS cast
                 FROM works w WHERE {wsql} ORDER BY {order} LIMIT ? OFFSET ?""",
             args + [size, (page - 1) * size],
         ).fetchall()
