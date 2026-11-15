@@ -387,9 +387,20 @@ function castCard(c, wid) {
     h('span', {}, `${c.mentions.toLocaleString()} 次`));
 
   if (bioParas.length) {
+    // 默认只露两行，长文收进「展开」——角色卡一屏能放下的张数因此翻倍
+    const body = h('div', { class: 'cast-bio clamp2' },
+      ...bioParas.map(p => h('p', {}, p)));
+    const long = (c.bio || '').length > 90;
+    const toggle = h('button', {
+      class: 'cast-expand', type: 'button',
+      onclick: (e) => {
+        const folded = body.classList.toggle('clamp2');
+        e.currentTarget.textContent = folded ? '展开' : '收起';
+      },
+    }, '展开');
     return h('div', { class: `cast-card hue-${c.hue ?? 0}` },
       head, meta,
-      h('div', { class: 'cast-bio' }, ...bioParas.map(p => h('p', {}, p))),
+      h('div', { class: 'cast-bio-wrap' }, body, long ? toggle : null),
       more);
   }
 

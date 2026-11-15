@@ -685,6 +685,20 @@ details.fileinfo pre {
   text-indent: 2em; margin: 0 0 8px;
 }
 .cast-bio p:last-child { margin-bottom: 0; }
+/* 默认只露两行，长文点「展开」看全 —— 一屏能多放一倍的角色卡 */
+.cast-bio.clamp2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cast-bio.clamp2 p { margin: 0; display: inline; }
+.cast-expand {
+  margin-top: 6px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: .73rem; letter-spacing: .06em;
+  color: var(--fg-3); cursor: pointer;
+}
+.cast-expand:hover { color: var(--accent); }
 .cast-card { display: flex; flex-direction: column; }
 .cast-more { margin-top: auto; padding-top: 10px; }
 /* 原创角色标记：与「原作角色」区分 */
