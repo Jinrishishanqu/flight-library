@@ -320,7 +320,7 @@ async function renderWork(id) {
   const chars = w.characters.length ? h('div', { class: 'section' },
     h('h2', {}, '主要角色', h('span', { class: 'n' }, `${w.characters.length}`)),
     h('div', { class: 'cast' },
-      ...w.characters.map(c => castCard(c)))) : null;
+      ...w.characters.map(c => castCard(c, w.id)))) : null;
 
   const fileinfo = h('div', { class: 'section' },
     h('details', { class: 'fileinfo' },
@@ -348,7 +348,7 @@ function toggleVal(key, v) {
 
 const J = v => { try { return v ? JSON.parse(v) : null; } catch (_) { return null; } };
 
-function castCard(c) {
+function castCard(c, wid) {
   const story = J(c.story) || [];
   const tags = J(c.sex_tags) || [];
   const sexual = (c.sexual || '').split('\n').filter(Boolean);
@@ -357,6 +357,10 @@ function castCard(c) {
   ].filter(([, v]) => v && v !== '的' );
   const bioParas = (c.bio || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
   const gender = c.gender && c.gender !== '不明' ? c.gender : '';
+  const more = h('a', {
+    class: 'cast-more',
+    href: `#/search?q=${encodeURIComponent(c.name)}${wid ? `&work=${wid}` : ''}`,
+  }, wid ? '本作内检索 →' : '全文检索 →');
 
   const head = h('div', { class: 'cast-top' },
     h('span', { class: 'cast-name' }, c.name),
@@ -372,7 +376,7 @@ function castCard(c) {
     return h('div', { class: `cast-card hue-${c.hue ?? 0}` },
       head, meta,
       h('div', { class: 'cast-bio' }, ...bioParas.map(p => h('p', {}, p))),
-      h('a', { class: 'cast-more', href: `#/search?q=${encodeURIComponent(c.name)}` }, '全文检索 →'));
+      more);
   }
 
   return h('div', { class: `cast-card hue-${c.hue ?? 0}` },
@@ -389,20 +393,22 @@ function castCard(c) {
         ...tags.map(t => h('span', { class: 'ctag' }, t))) : null),
       sexual.length ? h('ul', { class: 'cast-list' },
         ...sexual.map(s => h('li', {}, s))) : null) : null,
-    h('a', { class: 'cast-more', href: `#/search?q=${encodeURIComponent(c.name)}` }, '全文检索 →'));
+    more);
 }
 
 const metaItem = (k, v) => h('div', {}, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v));
 
 /* ---------------- 搜索 ---------------- */
-async function renderSearch(q) {
+async function renderSearch(q, wid) {
   const root = $('#view');
   root.replaceChildren(h('div', { class: 'empty' }, h('span', { class: 'spinner' })));
-  const data = await API('search', { q, size: 40 });
+  const data = await API('search', wid ? { q, size: 40, work: wid } : { q, size: 40 });
 
   const head = h('div', { class: 'toolbar' },
-    h('span', { class: 'count' }, `“${q}” 命中 ${data.total} 处`),
+    h('span', { class: 'count' }, `“${q}” 命中 ${data.total} 处${wid ? '（限本书）' : ''}`),
     h('span', { class: 'spacer' }),
+    wid ? h('a', { class: 'btn', href: `#/work/${wid}` }, '返回本书') : null,
+    wid ? h('a', { class: 'btn', href: `#/search?q=${encodeURIComponent(q)}` }, '搜全库') : null,
     h('a', { class: 'btn', href: '#/' }, '返回书架'));
 
   if (!data.items.length) {
@@ -457,7 +463,7 @@ async function route() {
   document.body.classList.toggle('is-detail', isDetail);
 
   if (path.startsWith('/work/')) return renderWork(path.split('/')[2]);
-  if (path === '/search') return renderSearch(qs.get('q') || '');
+  if (path === '/search') return renderSearch(qs.get('q') || '', qs.get('work') || '');
   if (path === '/tags') return renderTags();
   if (path === '/cats') return renderCats();
   return renderShelf();

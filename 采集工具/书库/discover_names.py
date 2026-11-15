@@ -83,6 +83,13 @@ NAME_CHAR = set(
     "顺信杰涛昌成康星光达岩中茂进有坚彪博诚先敬震振壮会思群豪心邦承"
     "言之清凡风云天宇轩然澈寒尘汐洛琛珩瑾珏彦承允泽昀昱曜曦曦"
     "璧玉琳琪瑶璃璇玥珂珊玥瑛瑄琰璐琬璋琥珀琳琅"
+    # 追加：武侠/玄幻常见名末字（原先缺这些，导致「花晓镜」「叶泠泠」这类原创角色漏检）
+    "镜泠笙箫筝琴棋书画诗词歌舞魂幽冥妖魔神圣佛道侠剑刀弓箭盾甲铠袍冠冕"
+    "印符阵丹药蛊诀经卷碑塔楼阁殿宫城关塞舟船帆澜渊潭溪泉潮汐霖霁雯霓晖"
+    "晗晞昕旭晟景曌璎琅瑜璟岚屿峥嵘巍岑峦霄宸宥宴宁康泰平和顺"
+    "骁骁骅骐骥骏驰骁擎挚昊晗焱燚炅炜烨煜焕煦晟昕昭昱昭炀炎"
+    "霜霭霏霖霓霞云雾波涛潮汐潇湘澜渊涵泽沐淅洛汝沁泓淳湛溢澄"
+    "箐箬筎筠筱篱篠篥篦簪籍"
 )
 
 # 名字首字不可能出现的字（否则是「后韩风」这类跨词切分）
@@ -94,12 +101,61 @@ STOP_WORDS = set("""
 江湖 江山 河山 山峰 山谷 天下 天子 王八 王道 王者 白玉 白金 黄金
 苏打 苏醒 苏生 华丽 华夏 陈述 陈列 郑重 王者 马路 马虎 柳树 林间
 何等 何况 何时 何处 何必 何况 金钱 金属 金石 毛病 毛皮 石头 石榴
+许久 良久 半晌 片刻 须臾 刹那 此时 此刻 半晌 半天 好半 不久 不多
+而后 随后 于是 然而 虽然 因此 所以 但是 可是 只是 不过 而且 并且
+或者 以及 甚至 况且 何况 不管 无论 除非 即使 即便 一旦 万一 果然
+竟然 居然 难道 岂不 何须 不禁 不由 忍不 情不 十分 万分 无比 异常
+极其 极为 相当 非常 有些 有点 一片 一阵 一股 一丝 一抹 一声 一眼
+一股 一步 一时 一起 一同 一直 一定 一向 从来 向来 向来 这才 那就
 """.split())
 
 BAD_TAIL = set("地得着的然着了过著们么呢吧啊呀")
 BAD_NAME_HEAD = set("后前中上下里外内这那何每某各该本原来去到从向对把被让使给和与同跟及并或而则就都也又还且但却是在")
 
 SENT_SPLIT = re.compile(r"[。！？…\n]")
+
+
+ACT_AFTER = ("道", "说", "笑", "问", "答", "怒", "叹", "点头", "摇头", "看", "听",
+             "便", "也", "却", "又", "已", "正", "把", "被", "将", "向", "对",
+             "和", "与", "给", "让", "低", "抬", "转", "站", "坐", "走", "跑",
+             "伸", "心", "身", "眼", "脸", "手", "眉", "嘴", "头", "脚", "腰")
+PUNCT_SET = set("。！？…”’」』：；、，\n \t（《「『\"'—-~　")
+MIN_HEAD = 0.30     # 名字前面不是汉字的比例 —— 这是区分人名与普通词最强的一条
+MIN_STRONG = 0.04   # 前面是句读、后面接动作或句读的比例
+
+
+def is_han(ch: str) -> bool:
+    return "\u4e00" <= ch <= "\u9fff"
+
+
+def name_like(text: str, name: str) -> tuple[float, float, int]:
+    """(head, strong, n)。
+
+    head   前面不是汉字（句首 / 标点 / 引号后）的比例 ——「暴露在」「高贵的」这类
+           普通词几乎总是夹在汉字中间，「梨花带雨」「双眼赤红」被切出来的假名前面
+           一定是汉字，head 直接为 0。
+    strong 前面是句读、且后面紧跟动作词或句读的比例 —— 名字作主语/独立成分的证据。
+    """
+    n = text.count(name)
+    if n == 0:
+        return 0.0, 0.0, 0
+    head_ok = strong = 0
+    start = 0
+    L = len(name)
+    while True:
+        i = text.find(name, start)
+        if i < 0:
+            break
+        start = i + 1
+        before = text[i - 1] if i else "\n"
+        after = text[i + L: i + L + 2]
+        h = (not is_han(before)) or before in PUNCT_SET
+        if h:
+            head_ok += 1
+            a = (after[:1] in PUNCT_SET) or any(after.startswith(w) for w in ACT_AFTER)
+            if a:
+                strong += 1
+    return head_ok / n, strong / n, n
 
 
 def person_score(text: str, name: str) -> float:
@@ -164,6 +220,9 @@ def find_candidates(full: str, top: int = 40) -> list[tuple[int, str]]:
         if w[0] in BAD_NAME_HEAD or w[-1] in BAD_TAIL:
             continue
         if person_score(full, w) < 0.5:
+            continue
+        h, s, _n = name_like(full, w)
+        if h < MIN_HEAD or s < MIN_STRONG:
             continue
         # 三字候选若前两字单独高频（如「冉绝」3698 次 vs「冉绝刚」12 次），说明是切坏的
         if len(w) == 3 and full.count(w[:2]) >= n * 3:

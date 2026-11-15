@@ -106,10 +106,10 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 .venv\Scripts\python.exe 采集工具\校勘\restore_chapter_titles.py --dry
 .venv\Scripts\python.exe 采集工具\校勘\report_structure_issues.py
 
-# 阅读站（471 部 / 3,508 节，含全文检索与角色卡）
+# 阅读站（464 部 / 3,414 节，含全文检索与角色卡）
 启动飞行图书馆.cmd
 & .venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
-& .venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 8   # 重建角色档案
+& .venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 50  # 重建角色档案
 
 # 新章节归户：先诊断，确认后 --apply 追加
 & .venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt
@@ -128,7 +128,7 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 
 ## 阅读站
 
-- 作品详情页展示 **AI 写成的作品简介** 与 **主要角色卡**（1–4 个自然段的角色描述，原作角色与作者原创角色用「原创」徽标区分）
+- 作品详情页展示 **AI 写成的作品简介** 与 **主要角色卡**（1–4 个自然段的角色描述，原作角色与作者原创角色用「原创」徽标区分），每部最多 50 张卡、角色数据按作品隔离；主角由出场范围（全文切 100 块命中率）、出场跨度与次数综合判定，性别人工表 `采集工具\词库\原作信息.tsv` 优先
 
 `采集工具\书库\` 是独立于 `站点\` 的本地文库站：SQLite 库 + 零依赖 HTTP 服务 + 原生 JS 前端。
 书架 / 分类浏览 / 标签 / 全文检索（bm25）/ 作品详情（含角色卡）/ 正文阅读（字号行高主题、进度记忆、目录抽屉）。

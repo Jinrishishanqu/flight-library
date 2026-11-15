@@ -239,9 +239,10 @@ class Handler(BaseHTTPRequestHandler):
         d["characters"] = [
             dict(x) for x in con.execute(
                 "SELECT name,role,gender,mentions,title,intro,first_chapter,hue,"
-                "looks,figure,personality,relations,sexual,sex_tags,story,bio,bio_at,origin"
+                "looks,figure,personality,relations,sexual,sex_tags,story,bio,bio_at,origin,"
+                "coverage,spread,score"
                 " FROM characters WHERE work_id=? "
-                "ORDER BY mentions DESC LIMIT 20", (wid,)
+                "ORDER BY score DESC, mentions DESC LIMIT 50", (wid,)
             )
         ]
         d["chapter_total"] = con.execute(
@@ -279,16 +280,25 @@ class Handler(BaseHTTPRequestHandler):
             return {"total": 0, "items": [], "q": kw}
         page = max(1, int(q.get("page", 1)))
         size = min(60, max(1, int(q.get("size", 20))))
+        wid = q.get("work")
+        try:
+            wid = int(wid) if wid else None
+        except ValueError:
+            wid = None
+        wsql = " AND c.work_id = ?" if wid else ""
+        warg = [wid] if wid else []
         total = con.execute(
-            "SELECT COUNT(*) FROM chapters_fts WHERE chapters_fts MATCH ?", (fq,)
+            "SELECT COUNT(*) FROM chapters_fts JOIN chapters c ON c.id = chapters_fts.rowid"
+            " WHERE chapters_fts MATCH ?" + wsql, [fq] + warg
         ).fetchone()[0]
         rows = con.execute(
             """SELECT c.id, c.work_id, c.idx, c.title, c.content, w.title AS work_title,
                       w.source_work, bm25(chapters_fts) AS score
                FROM chapters_fts JOIN chapters c ON c.id = chapters_fts.rowid
                JOIN works w ON w.id = c.work_id
-               WHERE chapters_fts MATCH ? ORDER BY score LIMIT ? OFFSET ?""",
-            (fq, size, (page - 1) * size),
+               WHERE chapters_fts MATCH ?""" + wsql + """
+               ORDER BY score LIMIT ? OFFSET ?""",
+            [fq] + warg + [size, (page - 1) * size],
         ).fetchall()
         items = []
         for r in rows:
@@ -296,7 +306,7 @@ class Handler(BaseHTTPRequestHandler):
             d.pop("content", None)
             d["snippet"] = snippet(r["content"], kw)
             items.append(d)
-        return {"total": total, "page": page, "q": kw, "items": items}
+        return {"total": total, "page": page, "q": kw, "work": wid, "items": items}
 
     def _tags(self, con):
         return [

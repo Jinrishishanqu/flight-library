@@ -40,14 +40,23 @@ def main() -> int:
     maxw = 60
     if "--max" in sys.argv:
         maxw = int(sys.argv[sys.argv.index("--max") + 1])
+    # 只给「还没有 bio」的角色出素材（角色集重建后补写用）
+    only_missing = "--only-missing" in sys.argv
 
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
     OUT.mkdir(parents=True, exist_ok=True)
 
-    works = con.execute(
-        "SELECT id,title,source_work,char_count,chapter_count,tags,summary FROM works ORDER BY char_count DESC"
-    ).fetchall()
+    if only_missing:
+        works = con.execute(
+            "SELECT DISTINCT w.id,w.title,w.source_work,w.char_count,w.chapter_count,w.tags,w.summary "
+            "FROM works w JOIN characters c ON c.work_id=w.id "
+            "WHERE c.bio IS NULL OR c.bio='' ORDER BY w.char_count DESC"
+        ).fetchall()
+    else:
+        works = con.execute(
+            "SELECT id,title,source_work,char_count,chapter_count,tags,summary FROM works ORDER BY char_count DESC"
+        ).fetchall()
     if ids:
         works = [w for w in works if w["id"] in ids]
     works = works[:maxw]
@@ -63,9 +72,11 @@ def main() -> int:
         opening = re.sub(r"\s+", "", opening)[:1200]
 
         chars = con.execute(
-            "SELECT name,role,gender,mentions,first_chapter FROM characters WHERE work_id=? "
+            "SELECT name,role,gender,mentions,first_chapter,bio FROM characters WHERE work_id=? "
             "ORDER BY mentions DESC", (w["id"],)
         ).fetchall()
+        if only_missing:
+            chars = [c for c in chars if not (c["bio"] or "").strip()]
         if not chars and "--all" not in sys.argv:
             continue
 
