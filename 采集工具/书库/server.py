@@ -152,7 +152,8 @@ class Handler(BaseHTTPRequestHandler):
             "works": r[0], "chars": r[1] or 0, "chapters": r[2] or 0,
             "sources": len(self._sources(con)),
             "tags": con.execute("SELECT COUNT(*) FROM tags").fetchone()[0],
-            "characters": con.execute("SELECT COUNT(DISTINCT name) FROM characters").fetchone()[0],
+            "characters": con.execute("SELECT COUNT(*) FROM characters").fetchone()[0],
+            "character_names": con.execute("SELECT COUNT(DISTINCT name) FROM characters").fetchone()[0],
         }
 
     def _sources(self, con):

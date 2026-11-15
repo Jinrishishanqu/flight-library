@@ -560,7 +560,7 @@ async function boot() {
   // 统计数字
   API('stats').then(s => {
     const el = $('#statline');
-    if (el) el.textContent = `${s.works} 部 · ${fmtWan(s.chars)}字 · ${s.chapters} 节 · ${s.characters} 个角色`;
+    if (el) el.textContent = `${s.works} 部 · ${fmtWan(s.chars)}字 · ${s.chapters} 节 · ${s.characters} 张角色卡`;
   });
 
   window.addEventListener('hashchange', route);
