@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>踩坑记录 · 资源记录站</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo">资<span>源</span>记录站</div>
+    <nav>
+      <a href="index.html">总览</a>
+      <a href="sources.html">资源站</a>
+      <a href="pipeline.html">采集管线</a>
+      <a href="tools.html">工具链</a>
+      <a class="on" href="lessons.html">踩坑记录</a>
+      <a href="logs.html">运行日志</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>踩坑记录</h1>
+  <p class="lead">按「症状 → 原因 → 修法」写。这些都是实际卡住过、花掉时间的坑，不是理论。</p>
+
+  <h2>站点反爬</h2>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>「章节内容加载中…」= 正文在另一个接口</h3>
+    <p><span class="tag bad">症状</span> 蓝色书吧 <code>/read/&lt;bid&gt;/&lt;cid&gt;.html</code> 的静态 HTML 只有占位符，抓下来是空的。</p>
+    <p><span class="tag mid">原因</span> 正文由 <code>reader-async.js</code>（jsjiami 混淆）异步拉取。</p>
+    <p><span class="tag ok">修法</span> 用 playwright 拦 XHR 看清真接口：<code>GET /read/&lt;bid&gt;/&lt;cid&gt;.html?ajax=1&amp;_=&lt;ms&gt;</code> + 头 <code>X-Requested-With: XMLHttpRequest</code>，返回正文片段，之后纯 curl 即可，不必开浏览器。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>反爬把个别汉字换成 &lt;img data-word&gt;</h3>
+    <p><span class="tag bad">症状</span> 直接剥标签后正文缺字（「情」消失）。</p>
+    <p><span class="tag mid">原因</span> 正文混着 <code>&lt;img class="zi" data-word="&amp;#24773;"&gt;</code>，真字在属性里。</p>
+    <p><span class="tag ok">修法</span> 先把 <code>data-word</code> 解码回填再删 img。剥离地址广告必须限制在非汉字字符类内，否则「地址发布页.+{0,80}」会把后接正文一起吃成。</p>
+  </div>
+
+  <h2>PowerShell</h2>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>变量名大小写不敏感，参数把局部变量覆盖了</h3>
+    <p><span class="tag bad">症状</span> 脚本报「文本太短，跳过（A=0 B=0）」，明明传了文件。</p>
+    <p><span class="tag mid">原因</span> <code>param([string]$A)</code> 和函数体里 <code>$a = Get-Norm …</code> 是<strong>同一个变量</strong>。赋值把对象转成了 String，<code>$a.Norm</code> 变空。</p>
+    <p><span class="tag ok">修法</span> param 与局部变量绝不同名：改 <code>-PathA/-PathB</code> + <code>$objA/$objB</code>。同理 <code>$sb</code>（句子）和 <code>$sB</code>（句子数组）也会互相踩，改名 <code>$sentB</code> / <code>$sbr</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3><code>"$chars字"</code> 被解析成变量 <code>$chars字</code></h3>
+    <p><span class="tag bad">症状</span> 输出文件名变成 <code>《作品》-合集-.txt</code>，字数消失。</p>
+    <p><span class="tag mid">原因</span> 中文可以作变量名字符，PowerShell 把 <code>字</code> 吃进了变量名。</p>
+    <p><span class="tag ok">修法</span> 用格式化：<code>'{0}字' -f $chars</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>单引号字符串里的 <code>\uFEFF</code> 不是转义</h3>
+    <p><span class="tag bad">症状</span> 首行正则全部失配，整族候选为 0。</p>
+    <p><span class="tag mid">原因</span> 文件头有 BOM，读首行时带出 U+FEFF；而 PowerShell 单引号里 <code>'\uFEFF'</code> 是六个字面字符。</p>
+    <p><span class="tag ok">修法</span> <code>$head = (Get-Content -First 1).TrimStart([char]0xFEFF)</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>写脚本时正则变成 <code>\\d</code></h3>
+    <p><span class="tag bad">症状</span> 所有章号返回 0；<code>-全篇-</code> 判定抢先，整族被当同章去重只剩 1 篇。</p>
+    <p><span class="tag mid">原因</span> 落盘时被转义成双反斜杠，在单引号字符串里就是字面两个反斜杠。</p>
+    <p><span class="tag ok">修法</span> 文件里必须是单 <code>\d</code>；批量修：<code>sed -i 's/\\\\d/\\d/g' 脚本.ps1</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>bash 传数组参数被当字符串</h3>
+    <p><span class="tag bad">症状</span> <code>-Paths "a,b"</code> 只有一个元素，只处理了第一个文件。</p>
+    <p><span class="tag ok">修法</span> <code>pwsh -NoProfile -Command '&amp; "脚本.ps1" -Paths @("a","b")'</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>文件名含 <code>[]</code> 触发通配符</h3>
+    <p><span class="tag bad">症状</span> <code>Get-Content</code> 报文件不存在，但文件明明在。</p>
+    <p><span class="tag ok">修法</span> 一律 <code>-LiteralPath</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>正则写在 families.psd1 里跑不动</h3>
+    <p><span class="tag bad">症状</span> <code>^\d+-云韵纳兰篇-</code> 在独立测试里 <code>-match</code> 返回 True，放进脚本循环却全部不命中。</p>
+    <p><span class="tag ok">绕法</span> 改用语义词表：章节名式用 <code>$head -eq $k</code>，书名式用 <code>$bare.Contains($k)</code>。根因未查明，先绕过去。</p>
+    <div class="note bad">泛词（开始 / 处理 / 提议）必须用 <code>-eq</code>，不能用 <code>Contains</code>——否则会误杀《斗破苍穹改编版yin乱的开始枪指萧玉》这类新书章节。</div>
+  </div>
+
+  <h2>数据处理</h2>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>校对.ps1 不是增量</h3>
+    <p><span class="tag bad">症状</span> 重跑一次校对，刚刚合并掉的单章、查重移出的重复件全回来了，篇数从 420 跳回 617。</p>
+    <p><span class="tag mid">原因</span> 它从 <code>原文/</code> 全量重建，而 <code>_合并前备份/</code> 里只剩 2 个文件，没法反推哪些是已合并源。</p>
+    <p><span class="tag ok">修法</span> 建 <code>清理再生.ps1</code>：按 <code>LastWriteTime &gt; -Since</code> 找出新生成的，按「重复件名单 / 已合并源名单 / 关键词表」判再生，移到 <code>_临时/再生件/</code>。<strong>以后每次重跑校对，紧接着跑它。</strong></p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>校验报「字符序列不一致，长度相同，首个差异@0」</h3>
+    <p><span class="tag mid">原因</span> 重建清单时把来源文件按错误顺序拼接（目录枚举顺序 ≠ 章号顺序）。</p>
+    <p><span class="tag ok">修法</span> 拼来源必须 <code>Sort-Object { Get-Ch (Split-Path $_ -Leaf) }</code>；全部章号为 0 时改按 <code>文件名长度, 文件名</code> 排（避免「》」与「·」的地域性排序把「续」排到正篇前）。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>文件名字数不符（标 2.0w / 应为 2w）</h3>
+    <p><span class="tag ok">修法</span> wc 规则必须与校验脚本完全一致：</p>
+<pre><code>('{0}w' -f [Math]::Round($chars / 10000.0, 1)).Replace('.0w', 'w')</code></pre>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>严格 16-gram 抓不住「改章号的复制正文」</h3>
+    <p><span class="tag bad">症状</span> 重叠检测只报 31 个 16–24 字碎片，但两份文件明明有整章重复。</p>
+    <p><span class="tag mid">原因</span> 复制过来的章节字句有微差，连续 16 字完全相同的位置很少。</p>
+    <p><span class="tag ok">修法</span> 换粒度：<code>章对齐.ps1</code> 按章做 3-gram Dice（阈值 0.45），<code>重叠对齐.ps1</code> 按句做（阈值 0.70）。章级最可靠。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>关键词筛查分不清「男 × 女肛交」和 BL</h3>
+    <p><span class="tag mid">原因</span> 器官词、<code>他/她</code> 代词统计、<code>FemN&lt;=1</code> 全部会失真（女名 roster 不全，苏轻吟/戴云儿/王曦/唐心莲 都漏了）。</p>
+    <p><span class="tag ok">修法</span> 唯一可靠判据是「同一段内 ≥2 个男性角色名且无女名」，再加人工读段。220 段全部人读过一遍。</p>
+  </div>
+
+  <h2>外部工具与文件</h2>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>pwsh 7 加载不了 WinRT，OCR 必须用 powershell.exe 5.1</h3>
+    <p><span class="tag bad">症状</span> <code>pwsh -File OCR.ps1</code> 报「找不到类型 [Windows.Media.Ocr.OcrEngine,Windows.Foundation, ContentType=WindowsRuntime]」。</p>
+    <p><span class="tag mid">原因</span> PowerShell 7 跑在 .NET Core 上，没有 WinRT 投影；Windows PowerShell 5.1 才有。</p>
+    <p><span class="tag ok">修法</span> <code>powershell -NoProfile -ExecutionPolicy Bypass -File 采集工具\OCR.ps1 …</code>。可用的识别语言：<code>en-US, zh-Hans-CN</code>（本机）。脚本文件本身要存成 <strong>UTF-8 with BOM</strong>，否则 PS 5.1 按 ANSI 读，中文全乱。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>Edge 无头截图的相对路径不按 cwd 解析</h3>
+    <p><span class="tag bad">症状</span> <code>--screenshot="_临时\shot\a.png"</code> 跑完没报错，但工作目录里找不到文件。</p>
+    <p><span class="tag ok">修法</span> 传给 Edge 的路径必须先转绝对路径（<code>[System.IO.Path]::GetFullPath()</code>）。同理 <code>--user-data-dir</code> 也用绝对路径。</p>
+    <p class="dim">另：同一 <code>--user-data-dir</code> 若还有残留 msedge 进程，新调用会 attach 到旧实例而不截图——截图前先确认没有残留进程。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>WinRT 中文 OCR 会在每两个字之间插空格</h3>
+    <p><span class="tag bad">症状</span> 一页正文识别出 4368 字，实际只有 2441 字，全是「雳 小 说 一 第 一 版 主 网」这种。</p>
+    <p><span class="tag mid">原因</span> OCR 把每个字/词当独立 token 返回，<code>Line.Text</code> 自带分隔空格。</p>
+    <p><span class="tag ok">修法</span> 识别后用正则反复两轮收回空格：<code>(?&lt;=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])</code>，标点两侧同理。另外按 <code>Scale=2.0</code> 放大、按 1800px 切片（重叠 100px）能明显压错字率。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>长图一次 OCR 会超限</h3>
+    <p><span class="tag bad">症状</span> 整页长图（1200×30000）识别失败或只出一半。</p>
+    <p><span class="tag ok">修法</span> <code>[Windows.Media.Ocr.OcrEngine]::MaxImageDimension</code> 是 10000。脚本里按 <code>-SliceHeight</code> 切片，块间留 100px 重叠，再按行去重拼接。</p>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <h3>unzip 解不了 WinRAR 的 AES 包</h3>
+    <p><span class="tag bad">症状</span> <code>unsupported compression method 99</code>，中文名还乱码。</p>
+    <p><span class="tag ok">修法</span> 用 WinRAR 本体（本机无 7z/rar）：</p>
+<pre><code>"/c/Program Files/WinRAR/WinRAR.exe" x -o+ -ibck -p"密码" "源.zip" "F:\…\_临时\zd\\"</code></pre>
+    <p class="dim">目标目录用纯 ASCII 绝对路径，源路径加引号。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>python 是商店 stub</h3>
+    <p><span class="tag bad">症状</span> 执行 <code>python script.py</code> 无任何输出，exit 9009 / NOPY。</p>
+    <p><span class="tag ok">修法</span> 全部逻辑改用 PowerShell 7。别在 python 上耗时间。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>「全本」其实只是第一页</h3>
+    <p><span class="tag bad">症状</span> 抓下来的章末尾留着 <code>点击[ 数字分页 ]继续阅读--&gt;&gt;【1】【2】【3】【4】【5】【6】</code>，正文只有几千字，但看着像完整一章。</p>
+    <p><span class="tag bad">后果</span> 库里一批「1.7w 全本」实际是残页；《斗破苍穹改编版》因此只剩第一章第 1 页。</p>
+    <p><span class="tag ok">修法</span> 抓完章节页先解析 <code>chapterPages</code> 里的 <code>/view/&lt;id&gt;_N.html</code>，取最大 N，从第 2 页循环取回再拼。<code>版主爬.ps1</code> 已内置。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>代理端口只有一个能用</h3>
+    <p class="dim"><a href="https://laowang.vip/" target="_blank" rel="noopener">laowang.vip</a> / <a href="https://vikacg.com/" target="_blank" rel="noopener">vikacg.com</a> 直连 code=000。7897 / 7890 / 7891 / 1080 / 10808 / 2080 / 5283 全不通，只有 <code>127.0.0.1:7899</code> 通（Clash Verge）。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>老王论坛：积分不是软妹币</h3>
+    <p><span class="tag bad">症状</span> 账号积分 1809，点购买报「您的软妹币不足」。</p>
+    <p><span class="tag ok">修法</span> 软妹币只能靠每日签到 / 充值攒，跟积分是两套货币。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>桌面自动化被 Esc 锁整轮</h3>
+    <p><span class="tag bad">症状</span> 用户按 Esc 后，<code>screenshot</code> / <code>activate_window</code> / <code>keypress</code> 全部返回 <code>COMPUTER_USE_STOPPED_BY_USER</code>。</p>
+    <p><span class="tag ok">修法</span> 该轮不要再试桌面输入，改纯命令行；下一次用户发言后自动恢复。</p>
+  </div>
+
+  <h2>Python 工具链（v2 引擎）</h2>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>调 python 必须带 <code>PYTHONIOENCODING=utf-8 PYTHONUTF8=1</code></h3>
+    <p class="dim"><strong>症状</strong>：脚本里字符串正常，但把中文当命令行参数传进去就 <code>ValueError</code>，或输出在控制台变成问号。<br>
+    <strong>原因</strong>：本机 <code>python</code>/<code>python3</code> 是 Microsoft Store 的 stub，真正能用的是 uv 装的 <code>.venv/Scripts/python.exe</code>；Windows 默认 ANSI 代码页会把 argv 里的中文打碎。<br>
+    <strong>修法</strong>：<code>PYTHONIOENCODING=utf-8 PYTHONUTF8=1 ./.venv/Scripts/python.exe 脚本.py</code>；中文参数写进脚本文件或用文件传参，别拼命令行。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>ftfy 默认会把中文全角标点压成半角</h3>
+    <p class="dim"><strong>症状</strong>：清洗一遍后满篇 <code>萧炎说:"你好"</code>，原本的 <code>：“”</code> 不见了，diff 显示 6400 处替换 <code>old='：“' new=':"'</code>。<br>
+    <strong>原因</strong>：<code>ftfy.fix_text</code> 默认 <code>fix_character_width=True</code>、<code>uncurl_quotes=True</code>，那是给英文语料用的。<br>
+    <strong>修法</strong>：<code>ftfy.fix_text(t, fix_character_width=False, uncurl_quotes=False, unescape_html=False, fix_line_breaks=False)</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>用 utf-8 读 GBK 原文会让字数虚高 60%</h3>
+    <p class="dim"><strong>症状</strong>：校验报「删除过多」，但打开文件看正文一点没少。<br>
+    <strong>原因</strong>：GBK 字节被 utf-8 解码成大量替换符/多字节字符，源字数被算大。<br>
+    <strong>修法</strong>：所有源文件都走 <code>decode_bytes()</code>（BOM → charset_normalizer → utf-8 / gb18030 / big5 兜底），别直接 <code>read_text(encoding='utf-8')</code>。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>「校验」不能只做「逐字重现」</h3>
+    <p class="dim"><strong>症状</strong>：旧 <code>校验.ps1</code> 要求输出与源逐字一致，于是任何真实清洗都会让它报错，只能验证「没改坏」，验证不了「改好了」。<br>
+    <strong>原因</strong>：把「不变」当成了正确性标准。<br>
+    <strong>修法</strong>：<code>verify.py</code> 改成两条独立标准——结构合规（BOM / 换行 / 空行 / 字数后缀 / 广告残留 / 半角标点）+ 字数关系（允许 +2% 与 -25% 的清洗空间），二者分开报。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>别自己写去广告正则，去抄成熟书源的</h3>
+    <p class="dim"><strong>症状</strong>：手写规则能挡住「请记住本站」，挡不住 <code>最⊥新⊥小⊥说⊥在⊥六⊥9⊥书⊥吧⊥首⊥发！</code> 这种符号穿插型。<br>
+    <strong>原因</strong>：站方专门用穿插符号绕过「整行匹配」。<br>
+    <strong>修法</strong>：<code>harvest_filters.py</code> 从 SoNovel 的 31 个书源规则里收割 <code>chapter.filterTxt</code> 得到 59 条正则；再加一条「符号占比 ≥8% 且去符号后命中噪声库 → 整行删」。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>MinHash LSH 替代两两比对</h3>
+    <p class="dim"><strong>症状</strong>：<code>查重.ps1</code> 的 5-gram Jaccard 在 500 份文件上要跑十几分钟，增加到几千份就不可用。<br>
+    <strong>修法</strong>：<code>datasketch</code> MinHash LSH（num_perm=128、5-shingle、threshold 0.82），先分桶再组内精算；结果仍用 <code>rapidfuzz.partial_ratio</code> 分块验证「100% 被包含」才允许移出。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h3>源文件的换行是 <code>\r\r\n</code>，压空行压不掉</h3>
+    <p class="dim"><strong>症状</strong>：空行压缩规则 <code>\n{3,}</code> 明明在跑，读出来却还是双倍行距；<code>verify.py</code> 报不出裸 LF，因为 <code>\r\r\n</code> 里确实含 <code>\r\n</code>。<br>
+    <strong>原因</strong>：源站先做过一次 CRLF→LF→CRLF 的错误转换，留下双 CR。按行拆分再统一写 CRLF 会把它保留下来。<br>
+    <strong>修法</strong>：<code>tidy_space</code> 第一步就执行 <code>regex.sub(r"\r\n?|\n", "\n", text)</code>，把三种换行全压成 LF，最后写盘时再统一成 CRLF。筛查：<code>b.count(b"\r\r\n")</code>。</p>
+  </div>
+
+  <h2>内容层面的判断经验</h2>
+  <ul class="tight">
+    <li>「同人」这个词在 pixiv 上搜出来的大半不是 H——21% 命中率。</li>
+    <li>tag 命中 + 正文 H 词密度双重判定比单一条件稳。</li>
+    <li>同一本书在 pixiv 上常有 3–5 个异名版本，前 200 字指纹挡不住，5-gram Jaccard 才挡得住。</li>
+    <li>回目连载（<code>【第X回</code>）和章节连载（<code>【第X章</code>）要分开建族，混在一起会把两本书并到一处。</li>
+    <li>跨目录特例：同一本书的章节可能落在两个 IP 目录（《从斗罗开始收取性奴的诸天之旅》第 7 章在「斗破」目录）。</li>
+  </ul>
+</main>
+
+<footer><div class="wrap">踩坑记录 · 症状 / 原因 / 修法</div></footer>
+<script src="assets/app.js"></script>
+</body>
+</html>

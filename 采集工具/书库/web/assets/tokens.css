@@ -1,0 +1,114 @@
+/* ============================================================
+   tokens.css — 设计令牌
+   三主题：墨夜（默认深色）/ 宣纸（纸感浅色）/ 靛蓝（冷调深色）
+   对比度已实测：正文 13–15:1，次要 5–7:1，装饰 3–4:1
+   ============================================================ */
+
+:root {
+  /* 字体栈：优先本机思源，逐级回退到系统宋/黑 */
+  --f-serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun",
+             "Source Han Serif", serif;
+  --f-sans: "Source Han Sans SC", "Noto Sans SC", "PingFang SC",
+            "Microsoft YaHei", "Source Han Sans", sans-serif;
+  --f-mono: "Iosevka", "Sarasa Mono SC", "Cascadia Mono", Consolas, monospace;
+
+  /* 间距刻度 4px 基准 */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
+
+  /* 圆角：全局 ≤6px，克制 */
+  --r1: 2px; --r2: 4px; --r3: 6px; --r-full: 999px;
+
+  /* 发丝线代替阴影 */
+  --hair: 1px;
+
+  /* 动效 */
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --t-fast: 120ms;
+  --t-mid: 220ms;
+
+  /* 布局 */
+  --page-max: 1180px;
+  --topbar-h: 56px;
+
+  /* 阅读器（JS 会覆盖） */
+  --rd-fs: 19px;
+  --rd-lh: 1.75;
+  --rd-ls: .015em;
+  --rd-indent: 2em;
+  --rd-para-gap: 0;
+  --rd-measure: 34em;
+  --rd-pad-x: 28px;
+}
+
+/* ---------------- 墨夜：默认 ---------------- */
+:root,
+[data-theme="ink"] {
+  color-scheme: dark;
+  --bg: #14110E;
+  --bg-2: #1B1713;
+  --bg-3: #231E19;
+  --line: #2F2822;
+  --line-soft: rgba(255, 255, 255, .05);
+  --fg: #E8E1D5;
+  --rd-fg: #DED6C8;
+  --fg-2: #A79B8A;
+  --fg-3: #7C7263;
+  --accent: #D0825C;
+  --accent-2: #9FB79A;
+  --mark-bg: rgba(208, 130, 92, .16);
+  --mark-fg: #F0D9C8;
+  --sel-bg: #3A2C22;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .35);
+}
+
+/* ---------------- 宣纸 ---------------- */
+[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #F4EFE6;
+  --bg-2: #FBF8F1;
+  --bg-3: #EAE3D6;
+  --line: #DDD4C4;
+  --line-soft: rgba(0, 0, 0, .04);
+  --fg: #241F1A;
+  --rd-fg: #1F1B16;
+  --fg-2: #6A6157;
+  --fg-3: #948A7C;
+  --accent: #A8402A;
+  --accent-2: #3F6B5A;
+  --mark-bg: #F2E2B8;
+  --mark-fg: #2A2118;
+  --sel-bg: #E6D9BE;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .06);
+}
+
+/* ---------------- 靛蓝 ---------------- */
+[data-theme="indigo"] {
+  color-scheme: dark;
+  --bg: #0F1319;
+  --bg-2: #161C25;
+  --bg-3: #1D2530;
+  --line: #242C38;
+  --line-soft: rgba(255, 255, 255, .05);
+  --fg: #DDE4ED;
+  --rd-fg: #D6DEE9;
+  --fg-2: #9AA6B7;
+  --fg-3: #6D7889;
+  --accent: #C2A275;
+  --accent-2: #7FA0C4;
+  --mark-bg: rgba(194, 162, 117, .18);
+  --mark-fg: #EFE3CE;
+  --sel-bg: #26303D;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .4);
+}
+
+/* 封面六组布面色（无封面时按书名 hash 取） */
+:root {
+  --cloth-1: #24201C; /* 墨 */
+  --cloth-2: #2A2A26; /* 石 */
+  --cloth-3: #222A25; /* 竹 */
+  --cloth-4: #2B211B; /* 檀 */
+  --cloth-5: #2A1C1C; /* 绛 */
+  --cloth-6: #1F2430; /* 靛 */
+  --cloth-fg: #E4DACB;
+}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工具链 · 资源记录站</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo">资<span>源</span>记录站</div>
+    <nav>
+      <a href="index.html">总览</a>
+      <a href="sources.html">资源站</a>
+      <a href="pipeline.html">采集管线</a>
+      <a class="on" href="tools.html">工具链</a>
+      <a href="lessons.html">踩坑记录</a>
+      <a href="logs.html">运行日志</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>工具链</h1>
+  <p class="lead">
+    全部在 <code>采集工具/</code> 下，PowerShell 7。没有第三方依赖，没有 python。
+    调用方式统一：<code>pwsh -NoProfile -File 采集工具/脚本名.ps1 -参数</code>。
+  </p>
+
+  <div class="toolbar">
+    <input type="search" data-filter="tl" placeholder="搜索脚本名 / 用途…">
+  </div>
+
+  <table data-sortable id="tl">
+    <thead><tr><th>脚本</th><th>层</th><th>作用</th><th>关键参数</th></tr></thead>
+    <tbody>
+      <tr><td><code>run-all.ps1</code></td><td>调度</td><td>一键串起 搜集 → 入库 → 校对 → 校验</td><td>透传给下游</td></tr>
+      <tr><td><code>sources.psd1</code></td><td>配置</td><td>靶子与词表：targetsTudou 21 / targetsSanshao 19 / targetsChendong 10 / works 13 / seriesTags 20，<code>hWords</code> 66 词</td><td>—</td></tr>
+      <tr><td><code>搜集.ps1</code></td><td>采集</td><td>pixiv 搜索 + 取正文，H 判定后落地到 <code>raw/</code></td><td><code>-Auto -Queries -Tags -Group -HQueries -PerQuery -Pages</code></td></tr>
+      <tr><td><code>版主爬.ps1</code></td><td>采集</td><td>第一版主移动版：搜索 → 目录 → 逐章抓 <code>#nr1</code> 正文，按章节 id 升序拼成整本</td><td><code>-Queries -MaxBooks -MaxChapters -DelayMs -Proxy -DryRun</code></td></tr>
+      <tr><td><code>截图.ps1</code></td><td>采集</td><td>Edge 无头截图：CSS 画布/图片化正文/JS 渲染的页面走这条路。<code>-FullPage</code> 用超长视口抓整页</td><td><code>-Url -Urls -FromFile -OutDir -FullPage -WaitMs -Proxy</code></td></tr>
+      <tr><td><code>OCR.ps1</code></td><td>采集</td><td>截图转文字：WinRT <code>Windows.Media.Ocr</code>，自动放大 + 切片 + 去汉字间空格。<strong>必须用 powershell.exe 5.1 跑</strong></td><td><code>-Path -OutFile -OutDir -Merge -Scale -SliceHeight</code></td></tr>
+      <tr><td><code>流水线.ps1</code></td><td>调度</td><td>两条采集路线 + 后处理全链一键跑：crawl / shot / ocr / post / full</td><td><code>-Mode -Queries -Urls -Images -Title -MaxBooks -SkipPost</code></td></tr>
+      <tr><td><code>抽正文.ps1</code></td><td>采集</td><td>从抓下来的 HTML 剥正文：去 script/style → 定位容器 → 去标签 → 实体解码</td><td><code>-File -Anchor -Max</code></td></tr>
+      <tr><td><code>入库.ps1</code></td><td>整理</td><td><code>raw/</code> → <code>原文/</code>，三层判重 + ipRules 计分归类</td><td><code>-DryRun</code></td></tr>
+      <tr><td><code>校对.ps1</code></td><td>整理</td><td><code>原文/</code> → <code>校对后文章/</code>，按 README 规则重排</td><td>无（全量）</td></tr>
+      <tr><td><code>families.psd1</code></td><td>配置</td><td>合并族定义：Dir / Title / Match / Need / Span，另有 YeXuan 跨目录特例</td><td>—</td></tr>
+      <tr><td><code>合并.ps1</code></td><td>整理</td><td>按族把多章并一件，同章取长，产物名带章号范围与字数</td><td><code>-DryRun -Apply</code></td></tr>
+      <tr><td><code>重建清单.ps1</code></td><td>质检</td><td>合并/改名后重写 <code>记录/校对清单.csv</code>，Sources 反推</td><td>无</td></tr>
+      <tr><td><code>补源.ps1</code></td><td>质检</td><td>Sources 为空的行回 <code>原文/</code> 模糊匹配补来源</td><td>无</td></tr>
+      <tr><td><code>查重.ps1</code></td><td>质检</td><td>5-gram Jaccard ≥ 0.90 判重，保留最长，其余移 <code>_重复版本/</code></td><td><code>-Apply -Threshold</code></td></tr>
+      <tr><td><code>查同书.ps1</code></td><td>质检</td><td>同目录内主标题公共前缀 ≥5 字的候选对，产出人工复核清单</td><td>无</td></tr>
+      <tr><td><code>校验.ps1</code></td><td>质检</td><td>BOM / 裸 LF / 字符序列 / 字数目检；<code>-Fix</code> 改名</td><td><code>-Fix</code></td></tr>
+      <tr><td><code>索引.ps1</code></td><td>质检</td><td>重建 <code>书目索引.csv</code>（分组/文件/字数/KB/编码）</td><td>无</td></tr>
+      <tr><td><code>清理再生.ps1</code></td><td>质检</td><td>校对全量重跑后，把「已合并源」和「重复件」的再生文件移回 <code>_临时/再生件/</code></td><td><code>-Since -Apply</code></td></tr>
+      <tr><td><code>重叠检测.ps1</code></td><td>合并</td><td>逐字 16-gram 最长匹配，只抓完全相同的长块</td><td><code>-PathA -PathB -K -GapTol</code></td></tr>
+      <tr><td><code>重叠对齐.ps1</code></td><td>合并</td><td>句子级对齐：断句 → 3-gram Dice → 贪心保序</td><td><code>-Sim -MinSent</code></td></tr>
+      <tr><td><code>章对齐.ps1</code></td><td>合并</td><td>按「第N章」切章，正文前 300 字算相似，输出重复章表</td><td><code>-Sim -Report</code></td></tr>
+      <tr><td><code>章拼接.ps1</code></td><td>合并</td><td>按人工定的 Plan（<code>"A:21"</code>/<code>"B:43"</code>）拼装，可重编章号</td><td><code>-Plan -Renumber -Apply</code></td></tr>
+      <tr><td><code>重叠合并.ps1</code></td><td>合并</td><td>concat / append / prepend / insert 四模式。<strong>insert 分支有缺陷，只用 concat</strong></td><td><code>-Paths -Title -Apply</code></td></tr>
+      <tr><td><code>整合计划.psd1</code></td><td>整合</td><td>32 族同书认亲表：<code>Dir / Title / Mode / Include / Exclude / HeadPattern / Base / Dirs / Span</code></td><td>—</td></tr>
+      <tr><td><code>整合.ps1</code></td><td>整合</td><td>把一本书散成的几十个文件收成一本书：<code>Concat</code> 按章切段+同章取长+升序拼接+自动裁重叠，<code>KeepBest</code> 取最全版本</td><td><code>-Only -DryRun / -Apply</code></td></tr>
+      <tr><td><code>男同筛查.ps1</code></td><td>审计</td><td>每文件词频统计 → <code>记录/男同筛查.csv</code></td><td>无</td></tr>
+      <tr><td><code>男同摘录.ps1</code></td><td>审计</td><td>抽男性受体句式上下文 → <code>记录/男同片段.txt</code></td><td>无</td></tr>
+      <tr><td><code>男同段落.ps1</code></td><td>审计</td><td>段落内 ≥2 男名 + 器官词 → <code>记录/男同段落.txt</code></td><td>无</td></tr>
+      <tr><td><code>男同精查.ps1</code></td><td>审计</td><td>动作 + 器官 + 前后不同男名，过滤同名前缀误判</td><td>无</td></tr>
+      <tr><td><code>男同删除.ps1</code></td><td>审计</td><td>按名单把四棵树里的文件移到隔离目录，可 <code>-Purge</code></td><td><code>-ListFile -Apply -Purge</code></td></tr>
+      <tr><td><code>生成站点.ps1</code></td><td>调度</td><td>扫 原文/校对后文章/记录 → 写 <code>站点/data.js</code>，供本地记录站渲染数字</td><td>无</td></tr>
+      <tr><td><code>女角色缺席.ps1</code></td><td>审计</td><td>按 60 女名 / 40 男名 roster 统计女性角色缺席情况</td><td>无</td></tr>
+      <tr><td><code>py/normalize.py</code></td><td>校对</td><td>校对引擎 v2：charset_normalizer 编码探测 + ftfy mojibake 修复 + opencc 繁转简 + 站点广告正则库 + 半角标点归一 + 固定行宽接回 + 缩进统一</td><td><code>--dir --apply</code></td></tr>
+      <tr><td><code>py/build.py</code></td><td>生成</td><td>从 <code>原文</code> 生成校对稿，按清单判已处理</td><td><code>--all --ip --newer</code></td></tr>
+      <tr><td><code>py/refresh.py</code></td><td>生成</td><td>源被 REPL 升级后按字数比（&gt;1.15×）重建校对稿</td><td><code>--apply --min-ratio</code></td></tr>
+      <tr><td><code>py/apply_norm.py</code></td><td>生成</td><td>把规范化结果落回 <code>校对后文章</code> 并按新字数改名，原件备份</td><td><code>--apply</code></td></tr>
+      <tr><td><code>py/verify.py</code></td><td>校验</td><td>校验器 v2：BOM / 裸 LF / 连续空行 / 字数后缀 / 广告与 HTML 残留 / 半角标点 / 行尾空白</td><td><code>--dir</code></td></tr>
+      <tr><td><code>py/dedupe.py</code></td><td>去重</td><td>datasketch MinHash LSH（num_perm=128、5-shingle、阈值 0.82）全库近重复分组</td><td><code>--threshold</code></td></tr>
+      <tr><td><code>py/dedupe_apply.py</code></td><td>去重</td><td>按组移出被完全包含的版本到 <code>_重复版本/去重</code></td><td><code>--min-sim --apply</code></td></tr>
+      <tr><td><code>py/bsc.py</code></td><td>采集</td><td>蓝色书吧（lanseshuba.org）：POST <code>/search/</code> 搜书 → <code>/index/&lt;bid&gt;/</code> 目录 → <code>/read/&lt;bid&gt;/&lt;cid&gt;.html?ajax=1</code> 取正文（JS 异步，必须带 <code>X-Requested-With</code>），还原 <code>&lt;img data-word&gt;</code> 替字，章节内自动翻页</td><td><code>--kw --book --max-books --max-chapters --workers --delay</code></td></tr>
+      <tr><td><code>py/extract.py</code></td><td>采集</td><td>trafilatura 正文抽取（替代手写锚点正则），可直连 URL 或本地 HTML</td><td><code>--url --file --format</code></td></tr>
+      <tr><td><code>py/align.py</code></td><td>合并</td><td>rapidfuzz 章对齐：相似度 + 覆盖% 判断「同章不同版本 / 超集」</td><td><code>--a --b</code></td></tr>
+      <tr><td><code>py/ocr.py</code></td><td>采集</td><td>RapidOCR(PP-OCRv4 ONNX) 离线识别 + 行聚类，替代 WinRT OCR（不依赖 PS5.1）</td><td><code>--in --dir --out</code></td></tr>
+      <tr><td><code>py/harvest_filters.py</code></td><td>采集</td><td>从 SoNovel 31 个书源规则里收割 <code>chapter.filterTxt</code> → <code>噪声词库.json</code>（59 条）</td><td>无</td></tr>
+      <tr><td><code>py/selftest.py</code></td><td>自检</td><td>逐包验证 ftfy/opencc/cn2an/rapidfuzz/datasketch/trafilatura/RapidOCR 可用性</td><td>无</td></tr>
+    </tbody>
+  </table>
+
+  <h2>常用组合</h2>
+  <h3>正常扩库</h3>
+<pre><code>pwsh -NoProfile -File 采集工具/搜集.ps1 -Queries "萧薰儿 调教","美杜莎 凌辱" -PerQuery 3
+pwsh -NoProfile -File 采集工具/入库.ps1
+pwsh -NoProfile -File 采集工具/校对.ps1
+pwsh -NoProfile -File 采集工具/清理再生.ps1 -Apply     # 关键：把再生件移走
+pwsh -NoProfile -File 采集工具/重建清单.ps1
+pwsh -NoProfile -File 采集工具/校验.ps1
+pwsh -NoProfile -File 采集工具/索引.ps1</code></pre>
+
+  <h3>打开一个加密压缩包</h3>
+<pre><code>"/c/Program Files/WinRAR/WinRAR.exe" x -o+ -ibck -p"解压密码" \
+  "F:\新建文件夹\read - 副本\原文\xxx.zip" \
+  "F:\新建文件夹\read - 副本\_临时\zd\\"</code></pre>
+  <p class="dim">目标目录必须是纯 ASCII 绝对路径，输出目录不能带中文也行——但源 zip 路径要加引号。</p>
+
+  <h3>网页爬不到字 → 截图 + OCR</h3>
+<pre><code># 一条命令走完：截图 → OCR → 入库 → 校对 → 清理再生 → 清单 → 校验 → 索引 → 站点数据
+pwsh -NoProfile -File 采集工具/流水线.ps1 -Mode full \
+  -Urls "https://站点/章节页1.html|https://站点/章节页2.html" \
+  -Title "章节全书名" -FullPage
+
+# 也可以拆开跑
+pwsh -NoProfile -File 采集工具/截图.ps1 -Url "https://..." -OutDir "_临时/shot/某书" -FullPage
+powershell -NoProfile -ExecutionPolicy Bypass -File 采集工具/OCR.ps1 \
+  -Path "_临时/shot/某书" -Merge -OutFile "采集工具/raw/某书.txt"</code></pre>
+  <p class="dim">截图走 Edge 无头模式，不需要浏览器窗口；OCR 走 WinRT，<strong>只能用 powershell.exe 5.1</strong>（pwsh 7 加载不了 <code>Windows.Media.Ocr</code>）。</p>
+
+<pre><code># 1) 搜索拿书目 id
+curl -s -X POST "https://m.diyibanzhu.space/wap.php?action=search" \
+     --data-urlencode "wd=斗破苍穹" --data "objectType=2"
+# 2) 目录 /list/&lt;id&gt;.html 拿章节 id
+# 3) 章节 /view/&lt;id&gt;.html 取 div#nr1
+pwsh -NoProfile -File 采集工具/抽正文.ps1 -File 章节页.html -Anchor 'id="nr1"'</code></pre>
+
+  <h2>命名与目录约定</h2>
+  <table data-sortable>
+    <thead><tr><th>位置</th><th>内容</th><th>谁写</th></tr></thead>
+    <tbody>
+      <tr><td><code>采集工具/raw/</code></td><td>待入库的落地文件（只放根目录）</td><td>搜集.ps1</td></tr>
+      <tr><td><code>原文/&lt;IP&gt;/</code></td><td>原始 txt，不再改字</td><td>入库.ps1</td></tr>
+      <tr><td><code>校对后文章/&lt;IP&gt;/</code></td><td>成品，命名 <code>《作品》-章节-字数.txt</code></td><td>校对.ps1 / 合并.ps1</td></tr>
+      <tr><td><code>校对后文章/_合并前备份/</code></td><td>被合并或拼接掉的源文件</td><td>合并/章拼接/重叠合并</td></tr>
+      <tr><td><code>校对后文章/_重复版本/</code></td><td>查重移出的重复件</td><td>查重.ps1</td></tr>
+      <tr><td><code>采集工具/记录/</code></td><td>全部 CSV 日志与审计报告</td><td>各脚本</td></tr>
+      <tr><td><code>_临时/</code></td><td>解压暂存、再生件、验证图、截图（<code>_临时/shot/</code>）、Edge 配置（<code>_临时/edgeprof/</code>）</td><td>人工 / 脚本</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<footer><div class="wrap">工具链 · 30 个 .ps1 + 3 个 .psd1 + 13 个 py 脚本（Python 3.12 / uv venv）全部可单独重跑</div></footer>
+<script src="assets/app.js"></script>
+</body>
+</html>

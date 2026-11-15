@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资源记录站 · 同人文库工程</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo">资<span>源</span>记录站</div>
+    <nav>
+      <a class="on" href="index.html">总览</a>
+      <a href="sources.html">资源站</a>
+      <a href="pipeline.html">采集管线</a>
+      <a href="tools.html">工具链</a>
+      <a href="lessons.html">踩坑记录</a>
+      <a href="logs.html">运行日志</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>文件维护与资源记录</h1>
+  <p class="lead">
+    这个站把「同人文库」工程里接触过的每一个资源站、每一种抓取手段、每一个脚本、每一次踩的坑都记下来。
+    目的是下次要扩库时不用重新试错——直接看哪条路通、怎么通、通到什么程度。
+  </p>
+
+  <div class="grid g4">
+    <div class="stat"><div class="n" data-stat="yuanwen">611</div><div class="l">原文篇数</div><div class="s"><span data-stat="yuanwenMB">24</span> MB · 未校对</div></div>
+    <div class="stat"><div class="n" data-stat="jiaodui">489</div><div class="l">校对后文章</div><div class="s"><span data-stat="charsW">942</span> 万字 · <span data-stat="jiaoduiMB">30</span> MB</div></div>
+    <div class="stat"><div class="n">12</div><div class="l">资源站记录</div><div class="s">4 个可用 / 5 个受限</div></div>
+    <div class="stat"><div class="n">26</div><div class="l">工具脚本</div><div class="s">采集 → 入库 → 校对 → 校验</div></div>
+  </div>
+
+  <h2>快速直达</h2>
+  <p class="dim">按状态分组，点名字直接开站。详细门槛见 <a href="sources.html">资源站总表</a>。</p>
+  <div class="grid g3">
+    <div class="card">
+      <h3><span class="tag ok">可用</span> 免登录 / 已登录</h3>
+      <ul class="tight">
+        <li><a href="https://m.diyibanzhu.space/" target="_blank" rel="noopener">第一版主 · 移动版</a> — 直接爬正文，当前主力</li>
+        <li><a href="https://www.pixiv.net/novel/" target="_blank" rel="noopener">pixiv 小说</a> — API 直取，需 Cookie</li>
+        <li><a href="https://lessj.com/" target="_blank" rel="noopener">lessj.com</a> — 第一版主备用线</li>
+        <li><a href="https://www.d1bz.net/" target="_blank" rel="noopener">d1bz.net</a> — 旧 PC 站，已换皮</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="tag mid">受限</span> 要账号 / 积分 / 验证</h3>
+      <ul class="tight">
+        <li><a href="https://laowang.vip/" target="_blank" rel="noopener">老王论坛</a> — 软妹币 + 滑块，签到攒币</li>
+        <li><a href="https://www.moezone.app/" target="_blank" rel="noopener">萌の领域</a> — 登录可见正文</li>
+        <li><a href="https://vikacg.com/" target="_blank" rel="noopener">维咔 V 站</a> — 403，需浏览器 Cookie</li>
+        <li><a href="https://avcar.vip/" target="_blank" rel="noopener">avcar.vip</a> — 登录看附件</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="tag info">间接</span> 只给线索</h3>
+      <ul class="tight">
+        <li><a href="https://www.lzpanx.com/" target="_blank" rel="noopener">懒盘搜索</a> — 网盘聚合，直链被签名挡</li>
+        <li><a href="https://btdig.com/" target="_blank" rel="noopener">btdig</a> — BT 索引，本机不可达</li>
+        <li><a href="https://www.epgxs.net/" target="_blank" rel="noopener">一品阁</a> — 普通书站，无 H</li>
+        <li><a href="https://www.lanseshuba.org/" target="_blank" rel="noopener">蓝色书吧</a> — 普通书站，无搜索</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>这个站在记什么</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>① 资源站（<a href="sources.html">sources</a>）</h3>
+      <p class="dim">每个站的可用性、门槛、抓取方式、实测命中量。分三档：免登录可爬 / 要账号 / 已失效。</p>
+      <ul class="tight">
+        <li><a href="https://www.pixiv.net/novel/" target="_blank" rel="noopener">pixiv</a>：主力源，API 直取，命中率 80–90%</li>
+        <li><a href="https://m.diyibanzhu.space/" target="_blank" rel="noopener">第一版主移动版</a>：免登录爬正文，斗破 20 本 / 斗罗 15 本</li>
+        <li><a href="https://laowang.vip/" target="_blank" rel="noopener">老王论坛</a>：Discuz + 软妹币 + clicaptcha，已实购 93 文件包</li>
+        <li><a href="https://www.moezone.app/" target="_blank" rel="noopener">萌の领域</a> / <a href="https://vikacg.com/" target="_blank" rel="noopener">维咔</a> / 尚香书苑：要登录或答题</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>② 采集管线（<a href="pipeline.html">pipeline</a>）</h3>
+      <p class="dim">从「搜什么词」到「文件长什么样」的完整规则，含每步的判定标准。</p>
+      <ul class="tight">
+        <li>搜索策略：角色名/作品名 + H 词，比「同人」关键词高 4 倍命中</li>
+        <li>入库：MD5 + 标题归一 + 前 200 字指纹，三层判重</li>
+        <li>校对：固定行宽接回、标点错断接回、CRLF+UTF8BOM、章号合并</li>
+        <li>校验：BOM / 裸 LF / 字符序列 / 字数目检，489/489 通过</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>③ 工具链（<a href="tools.html">tools</a>）</h3>
+      <p class="dim">26 个 PowerShell 脚本的分工与调用方式。</p>
+      <ul class="tight">
+        <li>采集层：搜集 / 抽正文 / 清理再生</li>
+        <li>整理层：入库 / 校对 / 合并 / 章拼接 / 重叠合并</li>
+        <li>质检层：查重 / 查同书 / 男同筛查 / 校验 / 索引</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>④ 踩坑（<a href="lessons.html">lessons</a>）</h3>
+      <p class="dim">真正花掉时间的那些坑，一条都不删。</p>
+      <ul class="tight">
+        <li>PowerShell 变量名大小写不敏感 → <code>$a</code> 覆盖 <code>$A</code></li>
+        <li><code>"$chars字"</code> 被当成变量 <code>$chars字</code></li>
+        <li>校对脚本不是增量，重跑会回滚人工合并成果</li>
+        <li>WinRAR AES 包 unzip 解不了，必须用 WinRAR.exe</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>库况分布</h2>
+  <p class="dim">按作品归类的校对后文章数（共 <span data-stat="jiaodui">489</span> 篇）。</p>
+  <table data-sortable id="dist">
+    <thead><tr><th>分组</th><th>篇数</th><th>占比</th></tr></thead>
+    <tbody id="dist-body">
+      <tr><td>斗罗（唐家三少）</td><td class="num">166</td><td><div class="bar"><i data-pct="33.9"></i></div></td></tr>
+      <tr><td>斗破（天蚕土豆）</td><td class="num">146</td><td><div class="bar"><i data-pct="29.9"></i></div></td></tr>
+      <tr><td>大主宰（天蚕土豆）</td><td class="num">92</td><td><div class="bar"><i data-pct="18.8"></i></div></td></tr>
+      <tr><td>辰东系（遮天/完美世界/神墓）</td><td class="num">30</td><td><div class="bar"><i data-pct="6.1"></i></div></td></tr>
+      <tr><td>武动乾坤</td><td class="num">21</td><td><div class="bar"><i data-pct="4.3"></i></div></td></tr>
+      <tr><td>神印王座</td><td class="num">15</td><td><div class="bar"><i data-pct="3.1"></i></div></td></tr>
+      <tr><td>凡人修仙传</td><td class="num">9</td><td><div class="bar"><i data-pct="1.8"></i></div></td></tr>
+      <tr><td>元尊</td><td class="num">7</td><td><div class="bar"><i data-pct="1.4"></i></div></td></tr>
+      <tr><td>待归类</td><td class="num">2</td><td><div class="bar"><i data-pct="0.4"></i></div></td></tr>
+      <tr><td>仙逆</td><td class="num">1</td><td><div class="bar"><i data-pct="0.2"></i></div></td></tr>
+    </tbody>
+  </table>
+
+  <h2>目录结构</h2>
+<pre><code>read - 副本/
+├─ 原文/                 611 篇原始 txt（按 IP 分目录）
+├─ 校对后文章/           489 篇成品（命名《作品》-章节-字数.txt）
+│   ├─ _合并前备份/      被合并/被拼接的源文件
+│   └─ _重复版本/        查重移出的重复件
+├─ 采集工具/             25 个 ps1 + sources.psd1 + families.psd1
+│   ├─ raw/              入库前的落地目录
+│   └─ 记录/             全部 CSV 日志与审计报告
+├─ _临时/                解压暂存、再生件、验证图
+├─ 书目索引.csv          611 条：分组/文件名/字数/KB/编码
+├─ 资源包清单.md         现成资源包调研结论
+└─ README.md             校对规则与工具说明</code></pre>
+
+  <h2>当前状态</h2>
+  <div class="grid g3">
+    <div class="card"><h3>校验</h3><p><span class="tag ok">489 / 489 通过</span></p><p class="dim">BOM、换行、字符序列、文件名字数四项全绿。</p></div>
+    <div class="card"><h3>判重</h3><p><span class="tag ok">已清理</span></p><p class="dim">26 份同文异名重复件已移出；4 份短名重复件已移出。</p></div>
+    <div class="card"><h3>合并</h3><p><span class="tag ok">20 族已合并</span></p><p class="dim">含（加料）全本 47.9 万字、墨白线 29 章、RPG 系统 19 章重叠拼接。</p></div>
+    <div class="card"><h3>男同筛查</h3><p><span class="tag ok">0 份命中</span></p><p class="dim">1139 个 txt 四级筛查 + 人工读 220 段，结论为无 BL 正文。</p></div>
+    <div class="card"><h3>待办</h3><p><span class="tag mid">3 项</span></p><p class="dim">第一版主批量爬取、老王签到攒币买包、萌の领域登录取盘。</p></div>
+    <div class="card"><h3>已知风险</h3><p><span class="tag bad">1 项</span></p><p class="dim">校对.ps1 全量重跑会再生已合并单章，必须先跑 清理再生.ps1。</p></div>
+  </div>
+</main>
+
+<footer><div class="wrap">本地静态站 · 由 <code>采集工具/生成站点.ps1</code> 生成 · 数据截至 <span data-gen>2026-11-15</span></div></footer>
+<script src="data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

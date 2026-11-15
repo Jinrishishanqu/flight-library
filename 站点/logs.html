@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>运行日志 · 资源记录站</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo">资<span>源</span>记录站</div>
+    <nav>
+      <a href="index.html">总览</a>
+      <a href="sources.html">资源站</a>
+      <a href="pipeline.html">采集管线</a>
+      <a href="tools.html">工具链</a>
+      <a href="lessons.html">踩坑记录</a>
+      <a class="on" href="logs.html">运行日志</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>运行日志</h1>
+  <p class="lead">按时间倒序。每一步都写了「做了什么、产出多少、判据是什么」。</p>
+
+  <h2>时间线</h2>
+  <table data-sortable>
+    <thead><tr><th>时间</th><th>动作</th><th>结果</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>11-15 11:47</td><td>流水线端到端跑通（crawl → post 全链）</td><td class="num">+38 篇</td><td>绝世唐门 / 龙王传说 / 神印王座 / 诛仙；原文 645，校对 527，校验 527/527，1011 万字</td></tr>
+      <tr><td>11-15 11:46</td><td>截图 / OCR / 流水线三件套落地</td><td class="num">+3 脚本</td><td>Edge 无头截图 + WinRT OCR（去汉字间空格）+ 一键流水线</td></tr>
+      <tr><td>11-15 11:34</td><td>第一版主批量爬取（10 词）</td><td class="num">+26 篇</td><td>凡人修仙传之仙道淫途 8 万字、第二魔仙 7.9 万字等；命名 bug 修两轮</td></tr>      <tr><td>11-15 11:30</td><td>清理再生 + 手工移重复</td><td class="num">489 篇</td><td>校验 489/489 通过，索引 611 条</td></tr>
+      <tr><td>11-15 11:20</td><td>校对全量重跑（老王 zip 入库后）</td><td class="num">617 → 493</td><td>再生 124 份移出，4 份短名重复件手工移出</td></tr>
+      <tr><td>11-15 11:15</td><td><a href="https://laowang.vip/thread-1710528-1-1.html" target="_blank" rel="noopener">老王《斗破苍穹.zip》</a>解压入库</td><td class="num">+46 篇</td><td>104 文件 → 92 txt 入 raw，判重跳过 46</td></tr>
+      <tr><td>11-15 10:50</td><td>RPG 重叠章拼接</td><td class="num">420 篇</td><td>A23 ⊂ B43（97.2%），取 B 版，重编 19 章</td></tr>
+      <tr><td>11-15 10:38</td><td>辰东两族合并</td><td class="num">+2 件</td><td>遮天有爱番外 3 篇 / 遮天番外 6 篇</td></tr>
+      <tr><td>11-15 10:36</td><td>第二批合并（美杜莎 / 催眠 / 加料全本）</td><td class="num">-8 件</td><td>加料全本 47.9 万字</td></tr>
+      <tr><td>11-15 10:30</td><td>查重 Apply</td><td class="num">-26 份</td><td>pixiv 同文多名，5 个保留件改成可读名</td></tr>
+      <tr><td>11-15 10:26</td><td>第一批 16 族合并</td><td class="num">-101 件</td><td>斗破薰儿线 14 / 墨白线 29 / 夜玄线 15 …</td></tr>
+      <tr><td>11-15 10:20</td><td>男同四级筛查</td><td class="num">0 命中</td><td>1139 个 txt，人工读 220 段</td></tr>
+      <tr><td>11-15 09:40</td><td>第三轮扩库（系列 tag 补扫）</td><td class="num">+30 篇</td><td>跳过 336 / 367，产出 16.8 万字大件</td></tr>
+      <tr><td>11-15 09:20</td><td>第二轮扩库（作者线靶）</td><td class="num">+32 篇</td><td>土豆 5 / 三少 10 / 辰东 2 / 作品名 16</td></tr>
+      <tr><td>11-15 08:50</td><td>首轮作者线采集</td><td class="num">+11 篇</td><td>168 查询，旧靶子已挖干</td></tr>
+      <tr><td>11-14</td><td>基线建库完成</td><td class="num">493 篇</td><td>原文 13.65 MB，校对 19.07 MB</td></tr>
+      <tr><td>11-13 19:00</td><td>首次 <a href="https://www.pixiv.net/novel/" target="_blank" rel="noopener">pixiv</a> 采集</td><td class="num">首批落地</td><td>幽焰青莲系列（id 29478020 …）</td></tr>
+    </tbody>
+  </table>
+
+  <h2>记录文件</h2>
+  <p>全部在 <code>采集工具/记录/</code>，CSV 为 UTF-8 BOM、CRLF。下表由 <code>生成站点.ps1</code> 实时扫描。</p>
+  <table data-sortable>
+    <thead><tr><th>文件</th><th>行数</th><th>大小</th><th>更新时间</th></tr></thead>
+    <tbody id="rec-body">
+      <tr><td><code>采集记录.csv</code></td><td class="num">162</td><td class="num">—</td><td>—</td></tr>
+      <tr><td><code>校对清单.csv</code></td><td class="num">489</td><td class="num">—</td><td>—</td></tr>
+      <tr><td><code>校验报告.csv</code></td><td class="num">489</td><td class="num">—</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h3>各文件含义</h3>
+  <table data-sortable>
+    <thead><tr><th>文件</th><th>内容</th><th>谁写</th></tr></thead>
+    <tbody>
+      <tr><td><code>采集记录.csv</code></td><td>Time / Source / Id / Title / Ip / Tags / Chars / HScore / Url / File</td><td>搜集.ps1</td></tr>
+      <tr><td><code>入库清单.csv</code></td><td>Time / Ip / File / Chars / Bytes / MD5</td><td>入库.ps1</td></tr>
+      <tr><td><code>校对清单.csv</code></td><td>Time / Ip / Output / Sources / InChars / OutChars / Verified / Chars</td><td>校对.ps1 / 重建清单.ps1</td></tr>
+      <tr><td><code>校验报告.csv</code></td><td>Output / Ip / Verified / Issues / InChars / OutChars</td><td>校验.ps1</td></tr>
+      <tr><td><code>合并记录.csv</code></td><td>Time / Ip / Title / Output / Sources / Count / Chars</td><td>合并.ps1</td></tr>
+      <tr><td><code>重复候选.csv</code></td><td>Dir / Sim / Keep / KeepLen / Drop / DropLen / DropPath</td><td>查重.ps1</td></tr>
+      <tr><td><code>再生清理.csv</code></td><td>Time / Ip / File / Why（重复件再生 / 已合并源再生 / 已合并族(关键词)）</td><td>清理再生.ps1</td></tr>
+      <tr><td><code>流水线.csv</code></td><td>Time / Mode / Step / Status / Sec / Note</td><td>流水线.ps1</td></tr>
+      <tr><td><code>同书候选.csv</code></td><td>同目录主标题公共前缀 ≥5 字的候选对（41 对）</td><td>查同书.ps1</td></tr>
+      <tr><td><code>男同筛查.csv</code></td><td>逐文件词频（Tag / 男性动作 / 女性动作 / 他 / 她 / 肛肠 / 女性器官），1139 行</td><td>男同筛查.ps1</td></tr>
+      <tr><td><code>男同段落.txt</code></td><td>段落内 ≥2 男名 + 器官词，55 份文件 / 220 段</td><td>男同段落.ps1</td></tr>
+      <tr><td><code>男同精查2.txt</code></td><td>过滤同名前缀后的最终候选（4 条，均误判）</td><td>男同精查.ps1</td></tr>
+      <tr><td><code>男同名单.txt</code></td><td>待删除名单（当前为空，因为筛查结论 0 命中）</td><td>人工</td></tr>
+      <tr><td><code>章对齐_….txt</code></td><td>RPG 两篇的章级相似度矩阵与建议</td><td>章对齐.ps1</td></tr>
+      <tr><td><code>重叠检测.txt</code> / <code>重叠对齐….txt</code> / <code>重叠合并报告.txt</code></td><td>三种粒度的重叠检测报告</td><td>重叠*.ps1</td></tr>
+      <tr><td><code>女角色缺席.csv</code></td><td>60 女名 / 40 男名 roster 统计</td><td>女角色缺席.ps1</td></tr>
+      <tr><td><code>版主采集.csv</code></td><td>Time / Source / Id / Title / Query / Chapters / Chars / HScore / Url / File</td><td>版主爬.ps1</td></tr>
+    </tbody>
+  </table>
+
+  <h2>批次明细</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>第一轮：关键词裸搜</h3>
+      <p>搜「同人」+ 作品名。命中率 21%。</p>
+      <p class="dim">教训：这个词搜出来的大半是正经同人。</p>
+    </div>
+    <div class="card">
+      <h3>第二轮：角色名 + H 词</h3>
+      <p>21 靶 × 8 H 词。命中率 80–90%。</p>
+      <p class="dim">这一轮把库里大部分篇目打了下来。</p>
+    </div>
+    <div class="card">
+      <h3>第三轮：作者线靶</h3>
+      <p><code>-Group tudou/sanshao/chendong/works</code>，净增 32 篇。</p>
+      <p class="dim">土豆 5 / 三少 10 / 辰东 2 / 作品名 16。</p>
+    </div>
+    <div class="card">
+      <h3>第四轮：系列 tag 补扫</h3>
+      <p><code>-Tags</code> + <code>-Pages 5</code>，净增 30 篇。</p>
+      <p class="dim">捞到《（加料）第1-20章》16.8 万字这种大件。</p>
+    </div>
+    <div class="card">
+      <h3>第五轮：男主名 + 宽 H 词</h3>
+      <p>净增 3 篇，跳过 7/10。</p>
+      <p class="dim">池子见底信号：新查询基本全判重。</p>
+    </div>
+    <div class="card">
+      <h3>第六轮：老王论坛实购</h3>
+      <p>一份 93 文件包 → 92 txt → 净增 46 篇。</p>
+      <p class="dim">判重跳过 46，说明和 pixiv 库重合度一半左右。</p>
+    </div>
+  </div>
+
+  <h2>当前数据</h2>
+  <div class="grid g4">
+    <div class="stat"><div class="n" data-stat="yuanwen">611</div><div class="l">原文篇数</div><div class="s"><span data-stat="yuanwenMB">24</span> MB</div></div>
+    <div class="stat"><div class="n" data-stat="jiaodui">489</div><div class="l">校对后</div><div class="s"><span data-stat="charsW">942</span> 万字 / <span data-stat="jiaoduiMB">30</span> MB</div></div>
+    <div class="stat"><div class="n" data-stat="verified">489</div><div class="l">校验通过</div><div class="s"><span data-stat="verifiedBad">0</span> 异常</div></div>
+    <div class="stat"><div class="n" data-stat="indexRows">611</div><div class="l">索引条目</div><div class="s">书目索引.csv</div></div>
+    <div class="stat"><div class="n" data-stat="regen">124</div><div class="l">再生件已清</div><div class="s">_临时/再生件/</div></div>
+    <div class="stat"><div class="n" data-stat="dedup">30</div><div class="l">重复件已隔离</div><div class="s">_重复版本/ + 临时</div></div>
+    <div class="stat"><div class="n" data-stat="merged">20</div><div class="l">合并族</div><div class="s">families.psd1</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">男同命中</div><div class="s">四级筛查 + 人工读段</div></div>
+  </div>
+</main>
+
+<footer><div class="wrap">运行日志 · 数据来自 采集工具/记录/</div></footer>
+<script src="data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>采集管线 · 资源记录站</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo">资<span>源</span>记录站</div>
+    <nav>
+      <a href="index.html">总览</a>
+      <a href="sources.html">资源站</a>
+      <a class="on" href="pipeline.html">采集管线</a>
+      <a href="tools.html">工具链</a>
+      <a href="lessons.html">踩坑记录</a>
+      <a href="logs.html">运行日志</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>采集管线</h1>
+  <p class="lead">
+    五段流水线：<strong>搜集 → 入库 → 校对 → 合并/查重 → 校验/索引</strong>。
+    每一段都有明确的判定标准，不靠感觉。
+  </p>
+
+  <div class="card">
+<pre><code>【采集】两条并行路线
+  路线 A  版主爬.ps1   →  站上文字能直取：搜索 → 目录 → 逐章 div#nr1 → raw/
+  路线 B  截图.ps1     →  Edge 无头截图 → OCR.ps1（WinRT）→ raw/
+                              ↑ 给「文字在 canvas / 图片里 / JS 渲染 / 登录墙后」的站
+
+      ↓  采集工具/raw/*.txt
+      ↓
+入库.ps1  →  判重(MD5+标题归一+前200字指纹) → 归类(ipRules计分) → 原文/&lt;IP&gt;/
+      ↓
+校对.ps1  →  行宽接回 → 标点接回 → 段落标记 → CRLF+UTF8BOM → 章号合并
+      ↓                                  → 校对后文章/&lt;IP&gt;/《作品》-章节-字数.txt
+合并.ps1 / 章拼接.ps1 / 重叠合并.ps1  →  多章并一件、跨文件去重叠
+      ↓
+查重.ps1 → 查同书.ps1 → 男同筛查.ps1 → 校验.ps1 → 索引.ps1 → 生成站点.ps1</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>一键跑：流水线.ps1</h3>
+<pre><code>pwsh -NoProfile -File 采集工具/流水线.ps1 -Mode crawl -Queries "绝世唐门,诛仙" -MaxBooks 4
+pwsh -NoProfile -File 采集工具/流水线.ps1 -Mode full -Urls "https://a|https://b" -Title "书名" -FullPage
+powershell -File 采集工具/流水线.ps1 -Mode post      # 只跑后处理链</code></pre>
+    <p class="dim">Mode 五档：<code>crawl</code> 爬文字 / <code>shot</code> 只截图 / <code>ocr</code> 只转文字 / <code>post</code> 只跑后处理 / <code>full</code> 截图+OCR+后处理。日志写 <code>记录/流水线.csv</code>。OCR 必须由 powershell.exe 5.1 执行，pwsh 7 加载不了 <code>Windows.Media.Ocr</code>。</p>
+  </div>
+  <h2>第一段 · 搜集：搜什么词决定一切</h2>
+  <p>同一个源，换关键词命中率差 4 倍。这是整个工程里最值钱的一条经验。</p>
+  <table data-sortable>
+    <thead><tr><th>搜索方式</th><th>示例</th><th>命中率</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>关键词「同人」</td><td><code>斗破苍穹 同人</code></td><td class="num">21%</td><td>tag 下 60 篇只有 13 篇是 H</td></tr>
+      <tr><td>角色名 + H 词</td><td><code>萧薰儿 调教</code></td><td class="num">80–90%</td><td>主力打法</td></tr>
+      <tr><td>作品名 + H 词</td><td><code>斗罗大陆 催眠</code></td><td class="num">80–90%</td><td>量大但重复多</td></tr>
+      <tr><td>系列 tag 补扫</td><td><code>-Tags 斗破苍穹 -Pages 5</code></td><td class="num">中</td><td>能捞到大件（47.9 万字全本）</td></tr>
+      <tr><td>作者线靶</td><td><code>-Group tudou</code></td><td class="num">低</td><td>池子早晚见底，第三轮只净增 3 篇</td></tr>
+    </tbody>
+  </table>
+
+  <h3>规则：H 判定</h3>
+  <ul class="tight">
+    <li>tag 命中任一 H 词 → 直接判 H</li>
+    <li>否则按 <code>hWords</code>（66 词）密度，<code>≥ HMin=2</code> 才收</li>
+    <li>词表要够宽：调教 / 中出 / 淫 / 凌辱 / 催眠 / 肉 / 奴 / 媚药 / 淫液 / 后穴 …</li>
+  </ul>
+
+  <h2>第二段 · 入库：三层判重</h2>
+  <div class="grid g3">
+    <div class="card"><h3>① MD5</h3><p class="dim">字节级完全相同。挡住同文件重复下载。</p></div>
+    <div class="card"><h3>② 标题归一</h3><p class="dim">去标点/空格/版本标记后比对。挡住「斗破苍穹(1)」「斗破苍穹 修正版」。</p></div>
+    <div class="card"><h3>③ 前 200 字指纹</h3><p class="dim">挡住同文异名。但这一层会漏近重复——后来靠 <code>查重.ps1</code> 的 5-gram Jaccard 补上。</p></div>
+  </div>
+  <div class="note">
+    <strong>归类的坑：</strong><code>入库.ps1</code> 只对 <code>raw/</code> <u>根目录</u>的文件跑 <code>Resolve-Ip</code>。
+    如果把 txt 放进 <code>raw/某子目录/</code>，子目录名会被当成 IP 名，整批归错类。
+  </div>
+  <p class="dim">归类靠 <code>ipRules</code> 计分（角色名权重最高）。已知误判：<code>绝色小医仙</code> 被分进「大主宰」。</p>
+
+  <h2>第三段 · 校对：v2 引擎（Python）</h2>
+  <p class="dim">校对已从 <code>校对.ps1</code>（PowerShell 手写规则）升级为 <code>py/normalize.py</code>（外部库 + 规则库），因为 PowerShell 版产出的稿子里还留着 18 份 HTML 残留、32 份站方广告、146 份半角标点、8 份连续空行。</p>
+  <table data-sortable>
+    <thead><tr><th>环节</th><th>用的库</th><th>解决什么</th></tr></thead>
+    <tbody>
+      <tr><td>编码探测</td><td><code>charset_normalizer</code></td><td>GBK / GB18030 / BIG5 混装的原文不再虚高或乱码（GBK 用 utf-8 读会虚高 60%+）</td></tr>
+      <tr><td>mojibake 修复</td><td><code>ftfy</code> 6.3</td><td>修复被错误二次编码的乱码。三个开关必须关：<code>fix_character_width / uncurl_quotes / unescape_html</code>，否则全角 <code>：“</code> 会被压成 <code>:"</code></td></tr>
+      <tr><td>繁简统一</td><td><code>opencc</code> t2s</td><td>站源一半是繁体，统一成简体才搜得到</td></tr>
+      <tr><td>广告清洗</td><td><code>噪声词库.json</code>（59 条）+ 规则</td><td>词库从 SoNovel 的 31 个书源 <code>chapter.filterTxt</code> 收割，能抓「符号穿插型」反过滤广告，如 <code>最⊥新⊥小⊥说⊥在⊥六⊥9⊥书⊥吧⊥首⊥发！</code></td></tr>
+      <tr><td>标点归一</td><td>自写（跳过时间与千分位）</td><td>半角 <code>, ; ? ! :</code> → 全角，不留 <code>萧炎说:"你好"</code></td></tr>
+      <tr><td>长图识别</td><td><code>RapidOCR</code> 1.4.4</td><td>截图转文字走 PP-OCRv4 ONNX，比 WinRT 准（WinRT 把「萧薰儿」识成「萧薰几」），且不依赖 PS5.1</td></tr>
+      <tr><td>正文抽取</td><td><code>trafilatura</code> 2.3</td><td>替代手写锚点正则，换站不用重写</td></tr>
+      <tr><td>章对齐</td><td><code>rapidfuzz</code> + <code>cn2an</code></td><td>相似度 + 覆盖% 判断两残卷哪章重复、谁是超集；中文数字转 int</td></tr>
+      <tr><td>全库去重</td><td><code>datasketch</code> MinHash LSH</td><td>两两 O(n²) 比对换成 LSH 分桶，几百份文件秒级出 28 组重复</td></tr>
+    </tbody>
+  </table>
+  <h2>校对：README 里的硬规则（仍然有效）</h2>
+  <table data-sortable>
+    <thead><tr><th>规则</th><th>做什么</th><th>为什么</th></tr></thead>
+    <tbody>
+      <tr><td>固定行宽接回</td><td>被硬折行的段落重新拼成一整段</td><td>源站按 40 字换行，不接回没法读</td></tr>
+      <tr><td>标点错断接回</td><td>句末标点后紧跟下一行的接上</td><td>避免一句话被劈成两段</td></tr>
+      <tr><td>段落标记</td><td>空行分段，统一 CRLF</td><td>后续合并/断句全靠这个</td></tr>
+      <tr><td>编码</td><td>UTF-8 with BOM</td><td>Windows 记事本不乱码</td></tr>
+      <tr><td>章号合并</td><td>同书连续章号并成一件（含中文数字）</td><td>单章文件太碎</td></tr>
+      <tr><td>命名</td><td><code>《作品》-章节-字数.txt</code>，≥1 万字用 <code>w</code></td><td>排序和肉眼扫读</td></tr>
+    </tbody>
+  </table>
+  <div class="note bad">
+    <strong>校对.ps1 不是增量脚本。</strong>它每次从 <code>原文/</code> 全量重建。人工合并过的族、查重移出的重复件，重跑一次就全回来了。
+    重跑后必须执行 <code>清理再生.ps1 -Apply</code> 把它们移走，否则前功尽弃。
+  </div>
+
+  <h2>第四段 · 合并与去重</h2>
+  <h3>多章并一件（families 驱动）</h3>
+  <p><code>families.psd1</code> 里每条族定义：</p>
+<pre><code>@{ Dir='斗破'; Title='斗破·萧薰儿篇'; Match='^萧薰儿篇'; Need='' }
+@{ Dir='斗罗'; Title='斗罗·（加料）全本'; Match='^（加料）'; Span='1~80（缺41-60章）' }</code></pre>
+  <ul class="tight">
+    <li><code>Match</code> 对<strong>去掉《》后的裸标题</strong>做匹配（文件名都带前导书名号，不剥就永远匹配不上）</li>
+    <li><code>Need</code> 是首行正则，用来确认「这一章真的是这本」（回目连载靠 <code>【第X回</code>，墨白线靠 <code>【第X章</code>）</li>
+    <li>同章两版取长度更长的；章号 0（<code>-全篇-</code>）单独按文件名长度排序放最前</li>
+  </ul>
+
+  <h3>重叠拼接（同一本书两个残卷）</h3>
+  <p>RPG 系统那一对的真实情况：A 有第 21–30 章，B 有第 41–50 章，<strong>唯一重复是 A 第 23 章 ≈ B 第 43 章，相似 99%</strong>，32-gram 分块命中 70/72 = 97.2%，B43 是 A23 的超集。</p>
+  <p>处理：<code>章对齐.ps1</code> 找重复章 → 人工定 Plan → <code>章拼接.ps1 -Renumber</code> 按 Plan 顺序拼，重复章取 B 版，重编 1–19 章。</p>
+<pre><code>pwsh -NoProfile -Command '&amp; "采集工具\章拼接.ps1" -PathA A.txt -PathB B.txt `
+  -Plan @("A:0","B:0","A:21","A:22","B:43","A:24","A:25","A:26","A:27","A:28","A:29","A:30",
+          "B:41","B:42","B:44","B:45","B:46","B:47","B:48","B:49","B:50") `
+  -Title "斗破苍穹x大主宰x武动乾坤之大千绿帽RPG系统" -Renumber -Apply'</code></pre>
+  <div class="note">bash 传 PowerShell 数组必须用 <code>-Command '&amp; … -Plan @("A:0","B:43")'</code>；
+    <code>-Plan "a,b"</code> 会被当成单个字符串，脚本里只认到一个元素。</div>
+
+  <h3>查重（同文异名）</h3>
+  <p><code>查重.ps1</code>：正文去空白 → 前 120 字聚类快筛 → 组内 5-gram Jaccard ≥ 0.90 判重 → 保留最长，其余移 <code>_重复版本/</code>。</p>
+  <p class="dim">实测抓到 26 份 <a href="https://www.pixiv.net/novel/" target="_blank" rel="noopener">pixiv</a> 同文多名（《斗罗h》=《淫之舞》、《dzzmcll》=《大主宰洛神后》、《彩潇》=《大主宰之三蛇尊干萧潇》…）。</p>
+
+  <h3>整本收拢（整合计划驱动）</h3>
+  <p>同一本书常被拆成几十个文件、还有上卷下卷、续集、同名不同版。<code>整合.ps1</code> 按 <code>整合计划.psd1</code> 的 32 族收成「一本一文件」，两条路线：</p>
+  <ul class="tight">
+    <li><strong>Concat</strong>：按 <code>【第X回】/【第X章-】</code> 或文件名 <code>-N-</code> 切段 → 同章取长 → 按章号升序拼接 → 新段前 40 字若在已拼尾部 8000 字内出现就裁掉重叠 → 产物名自动标 <code>起~止（缺X、Y）</code></li>
+    <li><strong>KeepBest</strong>：同书多个完整版，留字数最多那份，其余整份移 <code>_重复版本/整合/</code></li>
+  </ul>
+<pre><code>pwsh -NoProfile -File 采集工具\整合.ps1 -Only 斗破        # 预览
+pwsh -NoProfile -File 采集工具\整合.ps1 -Apply           # 执行</code></pre>
+  <p class="dim">斗破 152 → 103、斗罗 176 → 147，全库 527 → 447 篇；源单章移 <code>_合并前备份/整合/</code>，逐族流水写 <code>记录/整合记录.csv</code>，明细见项目根的 <code>整合报告.md</code>。</p>
+
+  <h2>第五段 · 校验与索引</h2>
+  <p><code>校验.ps1</code> 四项：文件头 BOM、是否有裸 LF、正文是否与来源拼接结果一致（字符序列比对）、文件名里标的字数是否等于实际字数。</p>
+  <p>当前：<strong>443 份输出，443 通过，0 异常</strong>。纯新增件（无来源）只做结构校验，标 <code>无来源(仅结构校验)</code>。</p>
+  <p><code>索引.ps1</code> 重建 <code>书目索引.csv</code>：分组 / 文件名 / 字数 / KB / 编码，644 条。</p>
+
+  <h2>男同筛查（四级）</h2>
+  <p>目标是「有男同内容的都去掉，女同保留」，而且连原文都不留。做法是逐级收窄，最后人工读段：</p>
+  <ol class="steps">
+    <li><code>男同筛查.ps1</code> — 每文件词频（Tag / 男性动作 / 女性动作 / 他 / 她 / 肛肠词 / 女性器官词）</li>
+    <li><code>男同摘录.ps1</code> — 抽男性受体句式上下文，38 份候选</li>
+    <li><code>男同段落.ps1</code> — 段落内 ≥2 个男名 + 器官词（50 人 roster），55 份 / 220 段</li>
+    <li><code>男同精查.ps1</code> — 动作词 + 器官词 + 前后不同男名，过滤同名前缀后只剩 4 条</li>
+  </ol>
+  <div class="note ok">
+    <strong>结论：1139 个 txt（校对后 421 + 原文 565 + 合并前备份 125 + 重复版本 28）里没有男 × 男文本。</strong>
+    全部命中都是误判，已分类归档在 <code>男同审计.md</code>。
+  </div>
+  <p class="dim">误判类型：<code>男男女女</code>（人群混处）、<code>龙阳之力</code>（功法名）、<code>同性</code> 指百合、两男名同段但受体是女、「他的菊花」指被女角色指交。</p>
+</main>
+
+<footer><div class="wrap">采集管线 · 每段都可单独重跑</div></footer>
+<script src="assets/app.js"></script>
+</body>
+</html>

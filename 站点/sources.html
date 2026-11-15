@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资源站总表 · 资源记录站</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo">资<span>源</span>记录站</div>
+    <nav>
+      <a href="index.html">总览</a>
+      <a class="on" href="sources.html">资源站</a>
+      <a href="pipeline.html">采集管线</a>
+      <a href="tools.html">工具链</a>
+      <a href="lessons.html">踩坑记录</a>
+      <a href="logs.html">运行日志</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>资源站总表</h1>
+  <p class="lead">
+    下面每个站都是实际访问过的，状态写了实测结果，不是听说。分四类：
+    <span class="tag ok">可用</span> 直接抓，
+    <span class="tag mid">受限</span> 要账号/积分/验证码，
+    <span class="tag bad">失效</span> 打不开或已换皮，
+    <span class="tag info">间接</span> 只能拿到网盘线索。
+  </p>
+
+  <div class="toolbar">
+    <input type="search" data-filter="src" placeholder="搜索站点名 / 域名 / 抓法…">
+    <select id="f-status">
+      <option value="">全部状态</option>
+      <option>可用</option><option>受限</option><option>失效</option><option>间接</option>
+    </select>
+  </div>
+
+  <table data-sortable id="src">
+    <thead>
+      <tr><th>站点</th><th>域名</th><th>类型</th><th>状态</th><th>门槛</th><th>取文方式</th><th>实测产出</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><a href="https://www.pixiv.net/novel/" target="_blank" rel="noopener">pixiv 小说</a></td><td><a href="https://www.pixiv.net/" target="_blank" rel="noopener">www.pixiv.net</a></td><td>同人投稿站</td><td><span class="tag ok">可用</span></td><td>Cookie 登录</td><td><span class="tag ok">直爬</span> API 取正文</td><td class="num">400+ 篇</td></tr>
+      <tr><td><a href="https://m.diyibanzhu.space/" target="_blank" rel="noopener">第一版主（移动版）</a></td><td><a href="https://m.diyibanzhu.space/" target="_blank" rel="noopener">m.diyibanzhu.space</a></td><td>H 文库</td><td><span class="tag ok">可用</span></td><td>无</td><td><span class="tag ok">直爬</span> 版主爬.ps1</td><td class="num" data-bleed="版主">35 本待抓</td></tr>
+      <tr><td><a href="https://laowang.vip/" target="_blank" rel="noopener">老王论坛</a></td><td><a href="https://laowang.vip/" target="_blank" rel="noopener">laowang.vip</a></td><td>Discuz 论坛</td><td><span class="tag mid">受限</span></td><td>注册 + 软妹币 + 滑块</td><td><span class="tag info">附件</span> 软妹币购买后 WinRAR 解压</td><td class="num">93 文件包 1 份</td></tr>
+      <tr><td><a href="https://www.moezone.app/" target="_blank" rel="noopener">萌の领域</a></td><td><a href="https://www.moezone.app/" target="_blank" rel="noopener">www.moezone.app</a></td><td>WordPress 社区</td><td><span class="tag mid">受限</span></td><td>登录可见正文</td><td><span class="tag mid">截图 OCR</span> 登录可见，DOM 里没有正文</td><td class="num">0</td></tr>
+      <tr><td><a href="https://vikacg.com/" target="_blank" rel="noopener">维咔 V 站</a></td><td><a href="https://vikacg.com/" target="_blank" rel="noopener">vikacg.com</a></td><td>ACG 社区</td><td><span class="tag mid">受限</span></td><td>登录 + 403</td><td><span class="tag mid">截图 OCR</span> 403，登录后走 Edge 截图</td><td class="num">0</td></tr>
+      <tr><td><a href="https://www.lzpanx.com/" target="_blank" rel="noopener">懒盘搜索</a></td><td><a href="https://www.lzpanx.com/" target="_blank" rel="noopener">www.lzpanx.com</a></td><td>网盘搜索</td><td><span class="tag info">间接</span></td><td>无（但直链签名）</td><td><span class="tag info">间接</span> 只给网盘目录，直链带签名</td><td class="num">命中 4.5 万条</td></tr>
+      <tr><td>尚香书苑</td><td>—</td><td>书站</td><td><span class="tag mid">受限</span></td><td>答题注册</td><td><span class="tag mid">截图 OCR</span> 答题注册后可见</td><td class="num">0</td></tr>
+      <tr><td><a href="https://avcar.vip/" target="_blank" rel="noopener">avcar</a></td><td><a href="https://avcar.vip/" target="_blank" rel="noopener">avcar.vip</a></td><td>论坛</td><td><span class="tag mid">受限</span></td><td>登录</td><td><span class="tag mid">截图 OCR</span> 登录后可见</td><td class="num">0</td></tr>
+      <tr><td><a href="https://www.d1bz.net/" target="_blank" rel="noopener">第一版主（旧 PC 站）</a></td><td><a href="https://www.d1bz.net/" target="_blank" rel="noopener">www.d1bz.net</a></td><td>H 文库</td><td><span class="tag bad">失效</span></td><td>—</td><td class="dim">—</td><td class="num">0</td></tr>
+      <tr><td><a href="https://btdig.com/" target="_blank" rel="noopener">btdig</a></td><td><a href="https://btdig.com/" target="_blank" rel="noopener">btdig.com</a></td><td>BT 索引</td><td><span class="tag bad">失效</span></td><td>网络不可达</td><td class="dim">—</td><td class="num">0</td></tr>
+      <tr><td><a href="https://www.epgxs.net/" target="_blank" rel="noopener">一品阁</a></td><td><a href="https://www.epgxs.net/" target="_blank" rel="noopener">www.epgxs.net</a></td><td>普通书站</td><td><span class="tag bad">无 H</span></td><td>无</td><td><span class="tag ok">直爬</span> 普通书站正文</td><td class="num">0</td></tr>
+      <tr><td><a href="https://www.lanseshuba.org/" target="_blank" rel="noopener">蓝色书吧</a></td><td><a href="https://www.lanseshuba.org/" target="_blank" rel="noopener">www.lanseshuba.org</a></td><td><strong>第一版主旧 PC 站（d1bz.net）跳转目标</strong></td><td><span class="tag ok">H 同人极多</span></td><td>POST <code>/search/</code> 字段 <code>searchkey</code>（搜索表单是 JS 动态插入的，直接看 HTML 会以为没搜索）</td><td><span class="tag ok">ajax 接口直爬</span> <code>/read/&lt;bid&gt;/&lt;cid&gt;.html?ajax=1&amp;_=ts</code> 带 <code>X-Requested-With</code></td><td class="num">待抓</td></tr>
+    </tbody>
+  </table>
+
+  <h2>逐个详情</h2>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3><a href="https://www.pixiv.net/novel/" target="_blank" rel="noopener">pixiv 小说</a> · <span class="tag ok">主力源</span></h3>
+    <p>整条管线最开始的数据来源。走站内 AJAX 接口，不用浏览器。</p>
+    <ul class="tight">
+      <li>搜索：<code>GET /ajax/search/novels/{关键词}?word=…&amp;order=date_d&amp;mode=all&amp;p=1&amp;lang=zh</code></li>
+      <li>取正文：<code>GET /ajax/novel/{id}?lang=zh</code>，正文在 <code>body.content</code>，标签 <code>tags.tags[].tag</code></li>
+      <li>需要登录 Cookie（<code>PHPSESSID</code>），不带 Cookie 也能读部分公开作品</li>
+    </ul>
+    <div class="note ok">
+      <strong>关键词策略是决定命中率的关键：</strong>直接搜「同人」命中率只有 21%（斗破苍穹 tag 下 60 篇仅 13 篇是 H）；
+      改成「角色名 / 作品名 + H 词」后命中率到 80–90%。H 词共 66 个，含 调教/中出/淫/凌辱/催眠/肉/奴/媚药 等。
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3><a href="https://m.diyibanzhu.space/" target="_blank" rel="noopener">第一版主移动版</a> · <span class="tag ok">最省事</span></h3>
+    <p>免登录、无需代理，直接用 POST 搜、GET 爬。这是「不下载压缩包、直接爬正文」路线的首选。</p>
+<pre><code># 搜索（必须 POST，字段 wd）
+curl -s -X POST "https://m.diyibanzhu.space/wap.php?action=search" \
+     --data-urlencode "wd=斗破苍穹" --data "objectType=2"
+
+# 目录页：/list/&lt;id&gt;.html      例 1116 = 《斗破苍穹之萧薰儿的征程》14 章
+# 章节页：/view/&lt;id&gt;.html      正文在 &lt;div id="nr1"&gt;，&lt;br /&gt; 换行</code></pre>
+    <p class="dim">正文头部固定夹「作者 / 字数 / 日期 / 章节名」，另有一段 <code>#announceinfo</code> 广告要剔掉。</p>
+    <p class="dim">实测样例：目录 <a href="https://m.diyibanzhu.space/list/1116.html" target="_blank" rel="noopener">/list/1116.html</a>《斗破苍穹之萧薰儿的征程》14 章；章节 <a href="https://m.diyibanzhu.space/view/735002.html" target="_blank" rel="noopener">/view/735002.html</a>。搜索页 <a href="https://m.diyibanzhu.space/wap.php?action=search" target="_blank" rel="noopener">/wap.php?action=search</a>。</p>
+    <p>关键词命中书目数：<strong>斗破 20、斗罗 15、凡人修仙传 5、大主宰 4、武动乾坤 3、完美世界 3、遮天 2、神印王座 0、元尊 0</strong>。
+      按每本平均 30 章算，这里还有几百章没抓。</p>
+    <div class="note">同一站另有 <a href="https://lessj.com/" target="_blank" rel="noopener"><code>lessj.com</code></a>（200/27KB 可用）、<a href="https://ttshu5.com/" target="_blank" rel="noopener"><code>ttshu5.com</code></a>（503）、<a href="https://beifuzhi.com/" target="_blank" rel="noopener"><code>beifuzhi.com</code></a>（只返回 278 字节空壳）。</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3><a href="https://laowang.vip/" target="_blank" rel="noopener">老王论坛</a> <a href="https://laowang.vip/" target="_blank" rel="noopener"><code>laowang.vip</code></a> · <span class="tag mid">花币</span></h3>
+    <p>Discuz 论坛，资源以附件（zip/rar）形式发布，解压密码通常写在帖内。实测买过一份《斗破苍穹同人大合集 93 个文件》，2.44 MB / 4 软妹币，解压得 100 个 txt。</p>
+    <ul class="tight">
+      <li>登录：<code>POST /member.php?mod=logging&amp;action=login&amp;loginsubmit=yes&amp;loginhash=XXXX</code>，字段 <code>formhash / referer / username / password / cookietime</code></li>
+      <li>登录被 <strong>clicaptcha 拼图滑块</strong>拦住，先过验证再带隐藏域 <code>clicaptcha-submit-info</code> 提交</li>
+      <li>验证图：<code>GET /captcha/tncode.php?t=&lt;random&gt;</code> → WebP 240×450（上=背景含缺口，中=滑块，下=参考图）</li>
+      <li>校验接口：<code>POST /captcha/check.php</code>，body 形如 <code>tn_r={offset}&amp;track={b64}&amp;ts={ms}&amp;sign={fnv}</code></li>
+      <li>软妹币靠<strong>每日签到</strong>攒，积分不等于软妹币——这点踩过坑</li>
+    </ul>
+    <div class="note bad">
+      <code>track</code> 是 <code>trackInfo</code> JSON 与固定密钥 <code>GWDiugh398huiw0ioOYGd0934hew</code> 逐字符 XOR 后 base64；
+      <code>sign</code> 是 FNV-1a 变体。理论上可以纯脚本伪造，但更省事的是浏览器手动拖一次。
+    </div>
+    <p class="dim">已确认可搜到的门槛帖：<a href="https://laowang.vip/thread-1710528-1-1.html" target="_blank" rel="noopener">thread-1710528</a>（斗破 93 文件，已买到）、<a href="https://laowang.vip/thread-645950-1-1.html" target="_blank" rel="noopener">thread-645950</a>（斗破最全）、<a href="https://laowang.vip/thread-1483589-1-1.html" target="_blank" rel="noopener">thread-1483589</a>（斗罗 139 本）、<a href="https://laowang.vip/thread-511261-1-1.html" target="_blank" rel="noopener">thread-511261</a>（绝世淫门斗罗）、<a href="https://laowang.vip/thread-424725-1-1.html" target="_blank" rel="noopener">thread-424725</a>（土豆同人合集）。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3><a href="https://www.moezone.app/" target="_blank" rel="noopener">萌の领域</a> <a href="https://www.moezone.app/" target="_blank" rel="noopener"><code>moezone.app</code></a> · <span class="tag mid">要登录</span></h3>
+    <p>WordPress + inn 主题。帖子列表、标题、悬赏金额都能匿名看，<strong>正文被隐藏内容插件挡住</strong>，只显示「登录查看」。</p>
+    <ul class="tight">
+      <li>帖子页：<code>/forum/&lt;id&gt;.html</code>，如 <a href="https://www.moezone.app/forum/904451.html" target="_blank" rel="noopener">904451</a> 是「求几个刘备文网站链接」（悬赏 500 萌币）</li>
+      <li>资源帖带度盘链接，实测 <a href="https://www.moezone.app/113385.html" target="_blank" rel="noopener"><code>/113385.html</code></a>（斗破+斗罗 H 文大全 2.34MB）匿名只返回「登录查看」</li>
+      <li>正文容器：<code>.inn-singular__post__body__content</code>；评论走 <code>admin-ajax.php</code>，评论内容在 <code>#moe-comment-preload</code> 的 JSON 里</li>
+    </ul>
+    <div class="note">结论：注册账号后可用；抓取时要先剥 <code>&lt;style&gt;/&lt;script&gt;</code> 再定位正文容器，否则会被主题 CSS 淹没。</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3><a href="https://www.lzpanx.com/" target="_blank" rel="noopener">懒盘搜索</a> <a href="https://www.lzpanx.com/" target="_blank" rel="noopener"><code>lzpanx.com</code></a> · <span class="tag info">只到门口</span></h3>
+    <p>聚合夸克/百度/阿里网盘的搜索站，免登录，量极大：搜「斗破」夸克 14802 / 百度 1740 / 阿里 658，搜「斗破苍穹 合集」夸克 45323。</p>
+<pre><code># 正确姿势：q 必须 urlencode，裸拼会 400
+curl -s --data-urlencode "q=斗破" -G "https://www.lzpanx.com/search"
+
+# 明细页 /doc/&lt;id&gt; 是 Astro SSR，直链在 /api/doc/&lt;id&gt; 但被签名挡住：
+# {"code":401,"msg":"请求校验失败，请刷新页面后重试","details":{"reason":"invalid"}}</code></pre>
+    <p class="dim">示例明细页：<a href="https://www.lzpanx.com/doc/cltvkicoz004lx3bqjq0wegk9" target="_blank" rel="noopener">/doc/cltvkicoz004lx3bqjq0wegk9</a>（这一条实测是视频合集，不是文包）。</p>
+    <div class="note bad">带 Referer / X-Requested-With 也过不去。<strong>结论：只能拿来做「有没有这个资源」的线索判断，不能直取。</strong></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>第一版主旧 PC 站 <a href="https://www.d1bz.net/" target="_blank" rel="noopener"><code>d1bz.net</code></a> · <span class="tag bad">已换皮</span></h3>
+    <p>返回 2190 字节的 JS 跳转页，内含三条线：</p>
+<pre><code>LINE_POOL = ["https://line1.ltxs520.click/", "https://line2.ltxs520.click/", "https://line3.ltxs520.click/"]</code></pre>
+    <p>line1 → <a href="https://www.epgxs.net/" target="_blank" rel="noopener"><code>epgxs.net</code></a>（一品阁，普通小说），line2 → <a href="https://www.lanseshuba.org/" target="_blank" rel="noopener"><code>lanseshuba.org</code></a>（蓝色书吧）。<strong>2026-11 复测：早期判断「无搜索框、普通书站」是错的——搜索表单由 <code>common.js</code> 的 <code>document.write</code> 动态插入，静态 HTML 里看不到；实际它是第一版主旧 PC 站的书库，H 同人数量远多于 <code>m.diyibanzhu.space</code>（搜「斗破苍穹」一次出 30+ 本，全是 H 向改编）。正文走 <code>?ajax=1</code> 接口，需要用 <code>bsc.py</code> 抓。</strong></p>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3><a href="https://vikacg.com/" target="_blank" rel="noopener">维咔 V 站</a> <a href="https://vikacg.com/" target="_blank" rel="noopener"><code>vikacg.com</code></a> · <span class="tag mid">403 挡死</span></h3>
+    <p>账号已注册，但匿名抓取直接 403（Cloudflare 前置）。已知资源帖：
+      <a href="https://vikacg.com/p/33283" target="_blank" rel="noopener">p/33283</a>《斗破苍穹改编小说 50 部大合集 + CG》。</p>
+    <ul class="tight">
+      <li>直连与代理都返回 403，必须带浏览器 Cookie 才过</li>
+      <li>帖子地址形如 <code>/p/&lt;id&gt;</code>，站内另有 学习区 / 系统通知 等板块</li>
+    </ul>
+    <div class="note">同一门槛的还有 <a href="https://avcar.vip/" target="_blank" rel="noopener">avcar.vip</a>：帖 <a href="https://avcar.vip/thread-819091.html" target="_blank" rel="noopener">thread-819091</a>《斗罗柯南同人小说合集》，登录才能看附件。</div>
+  </div>
+
+  <h2>访问环境</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>代理</h3>
+      <p><a href="https://laowang.vip/" target="_blank" rel="noopener">laowang.vip</a> 和 <a href="https://vikacg.com/" target="_blank" rel="noopener">vikacg.com</a> 直连超时（code=000），必须走本地代理。</p>
+      <p>实测可用端口：<code>http://127.0.0.1:7899</code>。7897 / 7890 / 7891 / 1080 / 10808 / 2080 / 5283 全部不通。</p>
+    </div>
+    <div class="card">
+      <h3>本机工具现实</h3>
+      <ul class="tight">
+        <li><code>python</code> / <code>python3</code> 是商店 stub，执行无输出——不能用</li>
+        <li>无 7z / rar / magick / ffmpeg / node</li>
+        <li>解压加密包只能靠 <code>C:\Program Files\WinRAR\WinRAR.exe</code></li>
+        <li>PWsh 7.6.9 可用；<code>unzip</code> 解不了 AES（compression method 99）</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<footer><div class="wrap">资源站记录 · 状态随实测更新</div></footer>
+<script src="assets/app.js"></script>
+<script>
+document.getElementById('f-status').addEventListener('change', e => {
+  const v = e.target.value;
+  document.querySelectorAll('#src tbody tr').forEach(tr => {
+    tr.style.display = !v || tr.children[3].textContent.includes(v) ? '' : 'none';
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="ink">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>飞行图书馆</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#/">
+    <span class="mark"></span>
+    <span>飞行图书馆</span>
+  </a>
+
+  <div class="search">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8">
+      <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path>
+    </svg>
+    <input id="searchInput" type="search" placeholder="搜书名、作者、正文…  （/ 聚焦，回车全文检索）"
+           autocomplete="off" spellcheck="false">
+  </div>
+
+  <nav class="nav">
+    <a data-nav="/" href="#/">书架</a>
+    <a data-nav="/cats" href="#/cats">分类</a>
+    <a data-nav="/tags" href="#/tags">标签</a>
+  </nav>
+
+  <div class="theme-switch" role="group" aria-label="主题">
+    <button data-theme-btn="ink" title="墨夜"></button>
+    <button data-theme-btn="paper" title="宣纸"></button>
+    <button data-theme-btn="indigo" title="靛蓝"></button>
+  </div>
+</header>
+
+<div id="statline" class="statline"></div>
+
+<main id="view"></main>
+
+<!-- 筛选抽屉 -->
+<div id="drawerBackdrop" class="backdrop"></div>
+<aside id="drawer" class="drawer" aria-label="筛选">
+  <div class="head">
+    <h3>筛选</h3>
+    <button id="drawerClose" class="icon-btn" aria-label="关闭">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M6 6l12 12M18 6L6 18"></path>
+      </svg>
+    </button>
+  </div>
+  <div class="body"></div>
+</aside>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

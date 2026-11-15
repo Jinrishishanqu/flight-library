@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="ink">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>阅读 · 飞行图书馆</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reader.css">
+</head>
+<body class="reader-body">
+
+<div id="progress" class="rd-progress" style="width:0"></div>
+
+<div class="rd-bar">
+  <a class="icon-btn" href="index.html" aria-label="返回书架">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M15 18l-6-6 6-6"></path>
+    </svg>
+  </a>
+  <div class="title" id="barTitle"></div>
+  <button id="tocBtn" class="icon-btn" aria-label="目录" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M4 6h16M4 12h16M4 18h10"></path>
+    </svg>
+  </button>
+</div>
+
+<main>
+  <article id="rdRoot" class="rd"></article>
+  <nav id="rdNav" class="rd-nav"></nav>
+</main>
+
+<div id="rdDock" class="rd-dock">
+  <button id="setBtn" class="icon-btn" aria-label="阅读设置">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7">
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path>
+      <circle cx="15" cy="7" r="2.2"></circle><circle cx="9" cy="17" r="2.2"></circle>
+    </svg>
+  </button>
+  <span class="pct" id="pct">0%</span>
+</div>
+
+<!-- 设置面板 -->
+<div id="rdPanel" class="rd-panel" role="dialog" aria-label="阅读设置">
+  <div class="row">
+    <span class="k">字体</span>
+    <div class="seg" style="flex:1">
+      <button data-font="serif" aria-pressed="true">宋</button>
+      <button data-font="hei">黑</button>
+      <button data-font="kai">楷</button>
+    </div>
+  </div>
+  <div class="row">
+    <span class="k">字号</span>
+    <button id="fsMinus" class="icon-btn" style="width:26px;height:26px">−</button>
+    <input id="fsRange" type="range" min="14" max="28" step="1" value="19">
+    <button id="fsPlus" class="icon-btn" style="width:26px;height:26px">+</button>
+    <span class="val" id="fsVal">19</span>
+  </div>
+  <div class="row">
+    <span class="k">行高</span>
+    <button id="lhMinus" class="icon-btn" style="width:26px;height:26px">−</button>
+    <input type="range" min="1.5" max="2.2" step="0.05" value="1.75" disabled style="opacity:.4">
+    <button id="lhPlus" class="icon-btn" style="width:26px;height:26px">+</button>
+    <span class="val" id="lhVal">1.75</span>
+  </div>
+  <div class="row">
+    <span class="k">主题</span>
+    <div class="themes">
+      <button class="theme-dot" data-theme="ink" title="墨夜" style="background:#14110E"></button>
+      <button class="theme-dot" data-theme="paper" title="宣纸" style="background:#F4EFE6"></button>
+      <button class="theme-dot" data-theme="indigo" title="靛蓝" style="background:#0F1319"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 目录抽屉 -->
+<aside id="rdToc" class="rd-toc" aria-label="目录">
+  <header>
+    <span>目录</span>
+    <button id="tocClose" class="icon-btn" aria-label="关闭">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M6 6l12 12M18 6L6 18"></path>
+      </svg>
+    </button>
+  </header>
+  <ol id="tocList"></ol>
+</aside>
+
+<script src="assets/reader.js"></script>
+</body>
+</html>
