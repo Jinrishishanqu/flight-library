@@ -2,7 +2,7 @@
 
 中文同人 / 长篇小说的采集、排版校对、综合校勘与本地阅读站项目。
 
-**当前交付层是 `校勘版\`**（486 篇 / 1,890 万字），在排版稿之上叠加了水印净化、打码还原、专名统一、标点体例与成人语汇还原。
+**当前交付层是 `校勘版\`**（471 篇 / 1,882 万字），在排版稿之上叠加了水印净化、打码还原、专名统一、标点体例与成人语汇还原。
 **阅读站**把这一层装进 SQLite 库，提供书架、分类、标签、全文检索与正文阅读。
 
 ## 快速开始
@@ -21,7 +21,7 @@
 
 ```
 飞行图书馆\
-├─ 原文\              源库，字节不动。按原作分子目录（斗破 / 斗罗 / 大主宰 / 武动乾坤 / 神印王座 / 凡人修仙传 / 诛仙 / 元尊 / 仙逆 / 辰东 / 待归类）
+├─ 原文\              源库，字节不动。按原作分子目录（斗破 / 斗罗 / 大主宰 / 武动乾坤 / 神印王座 / 凡人修仙传 / 诛仙 / 元尊 / 仙逆 / 遮天 / 完美世界 / 神墓 / 不死不灭），判不出原作的进「待归类」。不再有「辰东」这种作者合集目录
 ├─ 校对后文章\        排版层（S1）：只动换行、分段、编码，一个字不改
 ├─ 校勘版\            成品层（S2+S3）：净化 + 专名 + 标点体例 + 语汇还原  ← 交付用
 ├─ 采集工具\          抓取 / 入库 / 校对 / 校验 / 去重 / 合并 / OCR / 截图 / 校勘 全套脚本
@@ -83,7 +83,7 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 .venv\Scripts\python.exe 采集工具\校勘\restore_chapter_titles.py --dry
 .venv\Scripts\python.exe 采集工具\校勘\report_structure_issues.py
 
-# 阅读站（486 部 / 3,584 节，含全文检索与角色卡）
+# 阅读站（471 部 / 3,508 节，含全文检索与角色卡）
 启动飞行图书馆.cmd
 & .venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
 & .venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 8   # 重建角色档案
@@ -91,6 +91,16 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 # 新章节归户：先诊断，确认后 --apply 追加
 & .venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt
 & .venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt --apply
+
+# 书目整理（改名 / 同作合并 / 目录归类 / 章节按原文重切）
+& .venv\Scripts\python.exe 采集工具\书库\fix_titles.py --dry        # 书名去序号、去合集标记
+& .venv\Scripts\python.exe 采集工具\书库\scan_similar.py             # 找同作异名候选
+& .venv\Scripts\python.exe 采集工具\书库\compare_pair.py 367 388     # 并排读原文确认
+& .venv\Scripts\python.exe 采集工具\书库\merge_works2.py --apply     # 按章号排序合并
+& .venv\Scripts\python.exe 采集工具\书库\classify_source.py --apply  # 辰东/待归类 → 具体作品
+& .venv\Scripts\python.exe 采集工具\书库\update_source_works.py --apply
+& .venv\Scripts\python.exe 采集工具\书库\rebuild_chapters.py --dry   # 章节按原文「第N章」重切
+& .venv\Scripts\python.exe 采集工具\书库\refresh_fts.py              # 改库后重灌检索索引
 ```
 
 ## 阅读站
