@@ -172,15 +172,67 @@ def pick_title(text: str, name: str) -> str | None:
     return t if len(gaps) >= 2 else None
 
 
-def guess_gender(text: str, name: str) -> str | None:
+FEM_CHAR = set("眉婉妍婷雅娜娇娟媛芳蕾薇霞蓉莲兰芝芹柔娴静淑嫣妃姬娥婵嫱姝妮妹姐娘嫂婆母女娥妮嫣嫣嫣丽倩琬莹樱蝶燕莺凤月雪霜露香玉珠翠绮绫罗裙钗黛胭脂粉")
+MALE_CHAR = set("炎尘凡浩强峰龙虎刚军伟勇杰豪雄阳山石铁钢雷霆锋峰斌武魂帝尊")
+FEM_WORDS = ("小姐", "姑娘", "少女", "女子", "夫人", "妻子", "媳妇", "女帝", "女王", "圣女",
+             "仙子", "丫鬟", "侍女", "美女", "女孩", "女儿", "姐姐", "妹妹", "母亲", "娘亲",
+             "师娘", "女修", "女性", "师妹", "师姐", "红颜", "佳人", "丽人", "美妇", "少妇")
+MALE_WORDS = ("少年", "男子", "青年", "少爷", "公子", "男人", "父亲", "爸爸", "丈夫", "师兄",
+              "师弟", "男修", "男性", "老者", "老头", "老汉", "大汉", "汉子")
+
+
+def guess_gender(text: str, name: str) -> str:
+    """代词 → 称呼词 → 名字用字，三级投票；都不足以判定就返回「不明」。"""
     f = h = 0
+    fw = hw = 0
     for m in re.finditer(re.escape(name), text):
-        win = text[m.end(): m.end() + 14]
+        win = text[m.end(): m.end() + 10]
         f += win.count("她")
         h += win.count("他")
-    if f == 0 and h == 0:
-        return None
-    return "女" if f > h * 1.2 else ("男" if h > f * 1.2 else None)
+        around = text[max(0, m.start() - 8): m.end() + 12]
+        fw += sum(around.count(w) for w in FEM_WORDS)
+        hw += sum(around.count(w) for w in MALE_WORDS)
+    # 1) 名字用字最可靠（「萧炎」的「炎」、「柳眉」的「眉」）
+    score_f = sum(1 for c in name if c in FEM_CHAR)
+    score_m = sum(1 for c in name if c in MALE_CHAR)
+    if score_f > score_m:
+        return "女"
+    if score_m > score_f:
+        return "男"
+    # 2) 称呼词
+    if fw + hw >= 2 and fw > hw * 1.5:
+        return "女"
+    if fw + hw >= 2 and hw > fw * 1.5:
+        return "男"
+    # 3) 代词（阈值提高，后宫文里「她」到处都是）
+    if f + h >= 12 and f > h * 2.0:
+        return "女"
+    if f + h >= 12 and h > f * 2.0:
+        return "男"
+    return "不明"
+
+
+# 人名可信度：名字后接对话/动作动词、或位于句首、或前接「的/和/与」等，才算像人名。
+PERSON_NEXT = ("道", "说", "笑", "问", "答", "怒", "叹", "哼", "点头", "摇头", "看", "听",
+               "想", "便", "也", "却", "又", "已", "正", "把", "被", "将", "向", "对",
+               "和", "与", "给", "让", "低", "抬", "转", "站", "坐", "走", "跑", "伸")
+PERSON_PREV = set("，。！？…「」』『\"\"‘’\n \t、；：和与对向给被让把的")
+
+
+def person_score(text: str, name: str) -> float:
+    """0~1。普通名词（如「清水」）会得分很低：它多被量词/动词修饰，后面跟的不是对话动词。"""
+    tot = text.count(name)
+    if tot == 0:
+        return 0.0
+    good = 0
+    for m in re.finditer(re.escape(name), text):
+        nxt = text[m.end(): m.end() + 2]
+        prev = text[m.start() - 1] if m.start() else ""
+        if any(nxt.startswith(w) for w in PERSON_NEXT):
+            good += 1
+        elif prev in PERSON_PREV:
+            good += 1
+    return good / tot
 
 
 PUNCT_CL = "，。！？；：\r\n"
@@ -347,6 +399,23 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
     present = {w for _, w in hits}
     hits = [(n, w) for n, w in hits
             if not any(o != w and o.startswith(w) and o in present for o in present)]
+    # 人名可信度过滤：排除「清水」「银月」这类普通词被当成角色
+    hits = [(n, w) for n, w in hits if person_score(full, w) >= 0.30]
+    orig = {w for _, w in hits}          # guard 命中 = 原作角色
+
+    # 通用人名发现 = 作者原创角色（不在 guard 里的）
+    try:
+        from discover_names import find_candidates
+        disc = [(n, w) for n, w in find_candidates(full, limit * 3) if w not in orig]
+    except Exception:
+        disc = []
+    seen_d = set()
+    for n, w in disc:
+        if any(w != o and (o.startswith(w) or w.startswith(o)) for o in orig | seen_d):
+            continue
+        seen_d.add(w)
+        hits.append((n, w))
+    hits.sort(reverse=True)
     hits = hits[:limit]
     if not hits:
         con.execute("DELETE FROM characters WHERE work_id=?", (wid,))
@@ -361,6 +430,12 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
         for n in names:
             if n in p:
                 para_of[n].append(p)
+
+    # 重建前先留住已有的 AI 生成内容（bio 成本高，不能丢）
+    old_bio = {r["name"]: (r["bio"], r["bio_at"])
+               for r in con.execute(
+                   "SELECT name,bio,bio_at FROM characters WHERE work_id=?", (wid,))
+               if r["bio"] and r["bio"].strip()}
 
     con.execute("DELETE FROM characters WHERE work_id=?", (wid,))
     n_done = 0
@@ -387,6 +462,8 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
         ratio = mentions / total if total else 0
         role = "主角" if ratio >= 0.34 or mentions >= total * 0.5 else (
             "配角" if ratio >= 0.1 else "提及")
+        if role == "提及":
+            continue   # 只保留主角与配角
         hue = sum(ord(ch) for ch in name) % 6
 
         looks = best_sents(sents_name, name, looks_kw, n=1, need_name=True)
@@ -406,11 +483,14 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
                 tags.append((c, tag))
         tags.sort(reverse=True)
 
+        origin = "原作" if name in orig else "原创"
+        ob = old_bio.get(name)
+
         con.execute(
             "INSERT OR REPLACE INTO characters"
             " (work_id,name,aliases,role,gender,mentions,title,intro,first_chapter,hue,"
-            "  looks,figure,personality,relations,sexual,sex_tags,story)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "  looks,figure,personality,relations,sexual,sex_tags,story,origin,bio,bio_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (wid, name, None, role, gender, mentions, title, intro,
              first_idx.get(name), hue,
              looks[0] if looks else None,
@@ -419,7 +499,10 @@ def build_work(con, wid: int, guard: list[str], limit: int) -> int:
              rel,
              "\n".join(sexual) if sexual else None,
              json.dumps([t for _, t in tags[:6]], ensure_ascii=False) if tags else None,
-             json.dumps(story, ensure_ascii=False) if story else None))
+             json.dumps(story, ensure_ascii=False) if story else None,
+             origin,
+             ob[0] if ob else None,
+             ob[1] if ob else None))
         n_done += 1
     con.commit()
     return n_done

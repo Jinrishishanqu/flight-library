@@ -167,23 +167,26 @@ class Handler(BaseHTTPRequestHandler):
         where, args = ["1=1"], []
         kw = q.get("q", "").strip()
         if kw:
-            where.append("(w.title LIKE ? OR w.author LIKE ? OR w.summary LIKE ?)")
-            args += [f"%{kw}%"] * 3
-        if q.get("source"):
-            if q["source"] == "_none":
-                where.append("w.source_work IS NULL")
+            where.append("(w.title LIKE ? OR w.author LIKE ? OR w.summary LIKE ? OR w.summary_ai LIKE ?)")
+            args += [f"%{kw}%"] * 4
+        srcs = [x for x in (q.get("source") or "").split(",") if x]
+        if srcs:
+            if "_none" in srcs:
+                where.append("(w.source_work IS NULL OR w.source_work IN (%s))" % ",".join("?" * len([x for x in srcs if x != "_none"]) or ["NULL"]))
+                args += [x for x in srcs if x != "_none"]
             else:
-                where.append("w.source_work = ?")
-                args.append(q["source"])
+                where.append("w.source_work IN (%s)" % ",".join("?" * len(srcs)))
+                args += srcs
         if q.get("genre"):
             where.append("w.genre = ?")
             args.append(q["genre"])
-        if q.get("tag"):
+        tgs = [x for x in (q.get("tag") or "").split(",") if x]
+        if tgs:
             where.append(
                 "EXISTS (SELECT 1 FROM work_tags wt JOIN tags t ON t.id=wt.tag_id "
-                "WHERE wt.work_id=w.id AND t.name=?)"
+                "WHERE wt.work_id=w.id AND t.name IN (%s))" % ",".join("?" * len(tgs))
             )
-            args.append(q["tag"])
+            args += tgs
         if q.get("min"):
             where.append("w.char_count >= ?")
             args.append(int(q["min"]))
@@ -207,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
         total = con.execute(f"SELECT COUNT(*) FROM works w WHERE {wsql}", args).fetchone()[0]
         rows = con.execute(
             f"""SELECT w.id,w.title,w.author,w.genre,w.source_work,w.char_count,
-                       w.chapter_count,w.reading_minutes,w.summary,w.tags,w.status
+                       w.chapter_count,w.reading_minutes,COALESCE(w.summary_ai,w.summary) AS summary,w.tags,w.status
                 FROM works w WHERE {wsql} ORDER BY {order} LIMIT ? OFFSET ?""",
             args + [size, (page - 1) * size],
         ).fetchall()
@@ -221,10 +224,11 @@ class Handler(BaseHTTPRequestHandler):
         if not r:
             return {"error": "not found"}
         d = dict(r)
+        d["summary"] = d.get("summary_ai") or d.get("summary")
         d["characters"] = [
             dict(x) for x in con.execute(
                 "SELECT name,role,gender,mentions,title,intro,first_chapter,hue,"
-                "looks,figure,personality,relations,sexual,sex_tags,story"
+                "looks,figure,personality,relations,sexual,sex_tags,story,bio,bio_at,origin"
                 " FROM characters WHERE work_id=? "
                 "ORDER BY mentions DESC LIMIT 20", (wid,)
             )

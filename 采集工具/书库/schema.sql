@@ -86,6 +86,10 @@ CREATE TABLE IF NOT EXISTS characters (
     relations TEXT,                     -- 关系（妻子/师父/师姐…，取自正文原句）
     sexual    TEXT,                     -- 性方面描写，多条用换行分隔
     sex_tags  TEXT,                     -- JSON 数组：性相关关键词标签
+    story     TEXT,                     -- JSON 数组：[{"i":节号,"t":代表句}]
+    bio       TEXT,                     -- AI 生成的角色描述（1-4 自然段）
+    bio_at    TEXT,                     -- 生成时间
+    origin    TEXT,                     -- 原作 / 原创（作者自创角色）
     UNIQUE(work_id, name)
 );
 

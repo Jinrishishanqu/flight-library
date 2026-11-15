@@ -78,6 +78,11 @@ pwsh -File 采集工具\查重.ps1 -Apply
 # 校勘流水线（在远端 10.26.56.12 的 D:\article_tools 跑，见 文档\校勘报告.md）
 ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\normalize_sex_style.py"
 
+# 章结构（标题粘连 / 重复章）
+.venv\Scripts\python.exe 采集工具\校勘\diagnose_structure.py
+.venv\Scripts\python.exe 采集工具\校勘\restore_chapter_titles.py --dry
+.venv\Scripts\python.exe 采集工具\校勘\report_structure_issues.py
+
 # 阅读站（486 部 / 3,180 节，含全文检索与角色卡）
 启动飞行图书馆.cmd
 & .venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
@@ -89,6 +94,8 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 ```
 
 ## 阅读站
+
+- 作品详情页展示 **AI 写成的作品简介** 与 **主要角色卡**（1–4 个自然段的角色描述，原作角色与作者原创角色用「原创」徽标区分）
 
 `采集工具\书库\` 是独立于 `站点\` 的本地文库站：SQLite 库 + 零依赖 HTTP 服务 + 原生 JS 前端。
 书架 / 分类浏览 / 标签 / 全文检索（bm25）/ 作品详情（含角色卡）/ 正文阅读（字号行高主题、进度记忆、目录抽屉）。

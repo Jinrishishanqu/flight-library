@@ -119,18 +119,22 @@ async function renderShelf() {
 function chipsEl() {
   const items = [];
   if (state.q) items.push(['q', `“${state.q}”`]);
-  if (state.source) items.push(['source', state.source === '_none' ? '未归类' : state.source]);
+  for (const v of splitVals(state.source)) items.push(['source', v === '_none' ? '未归类' : v, v]);
   if (state.genre) items.push(['genre', state.genre]);
-  if (state.tag) items.push(['tag', state.tag]);
+  for (const v of splitVals(state.tag)) items.push(['tag', v, v]);
   if (state.status) items.push(['status', state.status]);
   if (state.min) items.push(['min', `≥${fmtWan(+state.min)}字`]);
   if (state.max) items.push(['max', `≤${fmtWan(+state.max)}字`]);
   if (!items.length) return h('div', { class: 'chips hidden' });
   return h('div', { class: 'chips' },
-    ...items.map(([k, label]) =>
+    ...items.map(([k, label, val]) =>
       h('span', { class: 'chip accent' }, label,
         h('button', {
-          onclick: () => { state[k] = ''; state.page = 1; syncFilterUI(); renderShelf(); },
+          onclick: () => {
+            if (val === undefined) state[k] = '';
+            else state[k] = splitVals(state[k]).filter(x => x !== val).join(',');
+            state.page = 1; syncFilterUI(); renderShelf();
+          },
           'aria-label': '移除筛选',
         }, '×'))),
     h('button', { class: 'btn', style: 'height:24px;font-size:12px', onclick: resetFilters }, '清除全部'));
@@ -200,12 +204,10 @@ async function openDrawer() {
         ...meta.tags.slice(0, 40).map(t =>
           h('button', {
             class: 'opt',
-            'aria-pressed': state.tag === t.name,
+            'aria-pressed': splitVals(state.tag).includes(t.name),
             onclick: (e) => {
-              state.tag = state.tag === t.name ? '' : t.name;
-              state.page = 1;
-              $$('.opt', e.target.closest('.opts')).forEach(o => o.setAttribute('aria-pressed', 'false'));
-              if (state.tag) e.target.setAttribute('aria-pressed', 'true');
+              toggleVal('tag', t.name);
+              e.currentTarget.setAttribute('aria-pressed', splitVals(state.tag).includes(t.name));
               renderShelf();
             },
           }, t.name, h('span', { class: 'n', style: 'opacity:.55;margin-left:4px' }, t.count))))),
@@ -296,6 +298,15 @@ async function renderWork(id) {
 
 const tagLink = t => h('a', { class: 'tag', href: `#/search?q=${encodeURIComponent(t)}` }, t);
 
+const splitVals = v => (v || '').split(',').filter(Boolean);
+function toggleVal(key, v) {
+  const arr = splitVals(state[key]);
+  const i = arr.indexOf(v);
+  if (i >= 0) arr.splice(i, 1); else arr.push(v);
+  state[key] = arr.join(',');
+  state.page = 1;
+}
+
 const J = v => { try { return v ? JSON.parse(v) : null; } catch (_) { return null; } };
 
 function castCard(c) {
@@ -305,19 +316,31 @@ function castCard(c) {
   const facts = [
     ['外貌', c.looks], ['身体', c.figure], ['性格', c.personality], ['关系', c.relations],
   ].filter(([, v]) => v && v !== '的' );
+  const bioParas = (c.bio || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
+  const gender = c.gender && c.gender !== '不明' ? c.gender : '';
+
+  const head = h('div', { class: 'cast-top' },
+    h('span', { class: 'cast-name' }, c.name),
+    c.title ? h('span', { class: 'cast-title' }, c.title) : null);
+
+  const meta = h('div', { class: 'cast-meta' },
+    h('span', { class: `role r-${c.role === '主角' ? 'lead' : 'side'}` }, c.role),
+    c.origin === '原创' ? h('span', { class: 'cast-origin' }, '原创') : null,
+    gender ? h('span', {}, gender) : null,
+    h('span', {}, `${c.mentions.toLocaleString()} 次`));
+
+  if (bioParas.length) {
+    return h('div', { class: `cast-card hue-${c.hue ?? 0}` },
+      head, meta,
+      h('div', { class: 'cast-bio' }, ...bioParas.map(p => h('p', {}, p))),
+      h('a', { class: 'cast-more', href: `#/search?q=${encodeURIComponent(c.name)}` }, '全文检索 →'));
+  }
 
   return h('div', { class: `cast-card hue-${c.hue ?? 0}` },
-    h('div', { class: 'cast-top' },
-      h('span', { class: 'cast-name' }, c.name),
-      c.title ? h('span', { class: 'cast-title' }, c.title) : null),
-    h('div', { class: 'cast-meta' },
-      h('span', { class: `role r-${c.role === '主角' ? 'lead' : c.role === '配角' ? 'side' : 'minor'}` }, c.role),
-      c.gender ? h('span', {}, c.gender) : null,
-      h('span', {}, `${c.mentions.toLocaleString()} 次`),
-      c.first_chapter ? h('span', {}, `首现 第${c.first_chapter}节`) : null),
+    head, meta,
     c.intro ? h('p', { class: 'cast-intro' }, c.intro) : null,
     story.length ? h('div', { class: 'cast-sec' },
-      h('h4', {}, '本书经历'),
+      h('h4', {}, '本书片段'),
       h('ul', { class: 'cast-list' },
         ...story.map(s => h('li', {}, h('b', {}, `第${s.i}节 `), s.t)))) : null,
     facts.length ? h('dl', { class: 'cast-dl' },
@@ -373,7 +396,7 @@ async function renderTags() {
             style: 'grid-template-columns:1fr auto;padding:10px 0',
             onclick: (e) => {
               e.preventDefault();
-              state.tag = t.name; state.page = 1;
+              Object.assign(state, { page: 1, tag: t.name, source: '', genre: '' });
               location.hash = '#/';
               renderShelf();
             },
@@ -404,7 +427,7 @@ async function renderCats() {
 
   const jump = (patch) => (e) => {
     e.preventDefault();
-    Object.assign(state, { page: 1, q: '', source: null, genre: null, tag: null }, patch);
+    Object.assign(state, { page: 1, q: '', source: '', genre: '', tag: '' }, patch);
     location.hash = '#/';
     renderShelf();
   };

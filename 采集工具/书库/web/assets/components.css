@@ -622,3 +622,20 @@ details.fileinfo pre {
 }
 .cast-more:hover{ color:var(--accent); }
 @media (max-width:640px){ .cast{ grid-template-columns:1fr; } }
+/* 角色卡 AI 描述（自然段） */
+.cast-bio { margin-top: 10px; }
+.cast-bio p {
+  font-size: .84rem; line-height: 1.85; color: var(--fg-2);
+  text-indent: 2em; margin: 0 0 8px;
+}
+.cast-bio p:last-child { margin-bottom: 0; }
+.cast-card { display: flex; flex-direction: column; }
+.cast-more { margin-top: auto; padding-top: 10px; }
+/* 原创角色标记：与「原作角色」区分 */
+.cast-origin {
+  font-size: .68rem; letter-spacing: .04em;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--r-full);
+  padding: 1px 6px;
+}
