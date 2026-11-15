@@ -39,7 +39,19 @@ PAIRS = [
     (190, 117),                  # 淫帝无双 -> 淫帝无双·操破苍穹（独有 35 段）
     (177, 117),                  # yin帝无双 -> 同上（190 的子集）
     (370, 371),                  # 雪帝 -> 雪帝与霍雨浩（独有 3 段）
+    (167, 175),                  # 斗破苍穹 魔法学院 -> 斗破苍穹（萧黛儿/萧薰儿人名变体，同文 0.98）
+    (279, 384),                  # 小桃 -> 霍雨浩与马小桃（子集，containment 1.00）
+    (189, 169),                  # 斗破苍穹之淫宗肆虐 -> 斗破苍穹-淫宗肆虐（子集 0.92）
+    (294, 317),                  # 斗破 -> 斗罗小狂四部曲（子集 0.9924）
+    (413, 409),                  # 武动乾坤之异魔域大乱斗（上） -> 异魔域大乱斗（完整版，子集 0.95）
+    (419, 96),                   # 遭媚药的绫清竹 -> 绫清竹（子集 0.88）
+    (97, 27),                    # 续-冰灵族银宴 -> 冰灵族银宴（真续篇，见 SEQUEL）
 ]
+
+# 真正的续篇：正文接续、无重复内容（互含 0.00），必须追加到主本末尾而不是判「无关」
+SEQUEL = {
+    (97, 27),                    # 续-冰灵族银宴：27 结尾「轰！」正是 97 开头「轰！伴随着一声震天轰响」
+}
 
 PUNCT = re.compile(r"\s+")
 # 只认「第N章」，不认「第N节」（后者是按字数切出来的）
@@ -50,17 +62,42 @@ def flat(s: str) -> str:
     return PUNCT.sub("", s or "")
 
 
+# 同文判定：段级前 24 字前缀会因「分段切法不同」而失配（同一段被切成两段，前缀就对不上），
+# 结果一篇同文会被整篇当成独有内容重复追加（189 vs 169：8-gram 覆盖 0.92，段级却剩 3 万字）。
+# 因此每个「前缀未命中」的段落再用 10-gram 复核一次：该段 gram 大部分已在主本里 → 仍是重复。
+SAME_TEXT = 0.85
+SEG_DUP = 0.40
+MIN_UNIQ_PARA = 40      # 独有段落至少这么长才算数（短于此的是语气/短句/分隔线）
+
+
+def grams(text: str, n: int = 8) -> set[str]:
+    t = flat(text)
+    return {t[i:i + n] for i in range(len(t) - n + 1)}
+
+
 def split_paras(text: str) -> list[str]:
     return [p.strip() for p in re.split(r"[\r\n]+", text) if p.strip()]
 
 
-def unique_text(child_text: str, parent_flat: str) -> tuple[str, int, int]:
-    """返回 (独有正文, 总段数, 被覆盖段数)。"""
+def unique_text(child_text: str, parent_flat: str, parent_grams: set[str]) -> tuple[str, int, int]:
+    """返回 (独有正文, 总段数, 被覆盖段数)。
+
+    两重判重：段首 24 字前缀 + 段内 10-gram 覆盖。另过滤过短片段 ——
+    同文的两个版本之间，差异大多是一句浪叫、一句短对话、一条分隔线，
+    累加起来几千字但拼不成正文，追加进去只会让章节里夹生。
+    """
     keep, total, dup = [], 0, 0
     for p in split_paras(child_text):
         total += 1
         key = flat(p)[:24]
         if len(key) >= 12 and key in parent_flat:
+            dup += 1
+            continue
+        pg = grams(p, 10)
+        if pg and len(pg & parent_grams) / len(pg) >= SEG_DUP:
+            dup += 1
+            continue
+        if len(flat(p)) < MIN_UNIQ_PARA:
             dup += 1
             continue
         keep.append(p)
@@ -96,6 +133,8 @@ def main():
         p_chs = chapters_of(con, parent_id)
         p_flat = flat("\n".join(c[2] for c in p_chs))
         c_chs = chapters_of(con, child_id)
+        is_seq = (child_id, parent_id) in SEQUEL
+        p_max = max((chap_no(t) or 0 for _, t, _ in p_chs), default=0)
 
         # 子章节的章号：从子作品标题取，取不到就沿用上一节的章号
         m = re.search(r"第[0-9零一二三四五六七八九十百千两]+章", cw["title"] or "")
@@ -107,12 +146,28 @@ def main():
             entries.append((no, 0, i, title, content))
 
         added = 0
+        p_grams = grams("\n".join(c[2] for c in p_chs))
+        cg = grams("\n".join(c[2] for c in c_chs)) if c_chs else set()
+        cover = (len(cg & p_grams) / len(cg)) if cg and not is_seq else 0.0
+        if is_seq:
+            print(f"  ~ #{child_id}《{cw['title'][:22]}》判为续篇 → 全量追加到主本章{p_max + 1}之后")
+        else:
+            print(f"  · #{child_id}《{cw['title'][:22]}》字符级覆盖 {cover:.3f}"
+                  f"（{len(cg)} 个 gram）→ 逐段复核后追加独有段落")
+        skipped = (not is_seq) and cover >= SAME_TEXT
+        if skipped:
+            print(f"  = #{child_id}《{cw['title'][:22]}》同文覆盖 {cover:.3f} ≥ {SAME_TEXT}"
+                  f" → 只标合并、不追加章节（差异是删节与分段，不是新内容）")
         for j, (idx, title, content) in enumerate(c_chs):
-            body, total, dup = unique_text(content, p_flat)
-            if len(body) < 200:
+            if skipped:
+                break
+            body, total, dup = unique_text(content, p_flat, p_grams)
+            if len(body) < 500:
                 continue
-            no = (chap_no(title) if CHAP_ONLY.match(title or "") else None) or child_no or 0
-            entries.append((no, 1, j, f"另版 · {title}" if title else "另版", body))
+            no = (chap_no(title) if CHAP_ONLY.match(title or "") else None) or child_no \
+                or (p_max + 1 + j if is_seq else 0)
+            label = "续" if is_seq else "另版"
+            entries.append((no, 1, j, f"{label} · {title}" if title else label, body))
             added += 1
             print(f"  + #{child_id}《{cw['title'][:22]}》第 {j + 1} 节 -> 章{no}"
                   f"  覆盖 {dup}/{total} 段，独有 {len(body)} 字")
