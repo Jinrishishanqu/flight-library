@@ -25,7 +25,7 @@
 
 内容全部是成人向同人，仅本地私有，不出网、不分发。
 
-**当前交付层是 `校勘版\`**（464 部 / 1,847 万字），在排版稿之上叠加了水印净化、打码还原、专名统一、标点体例与成人语汇还原。
+**当前交付层是 `校勘版\`**（464 部 / 1,795 万字），在排版稿之上叠加了水印净化、打码还原、专名统一、标点体例与成人语汇还原。
 **阅读站**把这一层装进 SQLite 库，提供书架、分类、标签、全文检索与正文阅读。
 
 ## 快速开始
@@ -106,7 +106,7 @@ ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\nor
 .venv\Scripts\python.exe 采集工具\校勘\restore_chapter_titles.py --dry
 .venv\Scripts\python.exe 采集工具\校勘\report_structure_issues.py
 
-# 阅读站（464 部 / 3,414 节，含全文检索与角色卡）
+# 阅读站（464 部 / 3,403 节，含全文检索与角色卡）
 启动飞行图书馆.cmd
 & .venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
 & .venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 50  # 重建角色档案
