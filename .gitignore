@@ -15,6 +15,11 @@ __pycache__/
 采集工具/书库/data/*.db-wal
 采集工具/书库/data/*.db-shm
 采集工具/书库/data/*.bak*
+采集工具/书库/data/bio_in/
+采集工具/书库/data/bio_out/
+
+# ---- 模型缓存 ----
+_模型缓存/
 
 # ---- 工具私有数据 ----
 .dsh/
@@ -26,3 +31,4 @@ Thumbs.db
 Desktop.ini
 *.log
 _t.*
+.tmp*
