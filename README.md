@@ -2,6 +2,9 @@
 
 一个私人的中文同人小说文库：把散落在各处的 txt/docx 收进来，逐层清洗成可读的成品，再装进本地数据库与阅读站，供分类、检索与阅读。
 
+**规模**：464 部作品 · 3,403 节 · 1,794 万字 · 2,759 张角色卡 · 13 个原作分族
+**细节**：完整说明见 [`文档\项目说明.md`](文档/项目说明.md)
+
 ## 这个项目是干什么的
 
 **一、把脏文本变成能读的文本。**
@@ -23,9 +26,12 @@
 **四、把校勘经验沉淀成词典。**
 `采集工具\词库\` 记专名正写、异写映射、成人语汇、错别字、水印碎片与符号规范，判定顺序固定为「打码还原 → guard 保护 → confusion 替换 → 断词还原 → 符号统一 → 台账」。频次只能发现候选，裁定权永远在原文与外部权威。
 
+**五、把这一串环节收进一个执行器。**
+`agent\` 统一调度：每个环节知道自己依赖谁、跳过条件是什么、产出必须满足什么；AI 环节走 API，调用与花费逐条记账，幂等 key 由业务定义（作品 id + 提示词版本 + 模型 + 正文摘要）。它**不替代** `采集工具\` 里的脚本，只是给它们一个调度层。
+
 内容全部是成人向同人，仅本地私有，不出网、不分发。
 
-**当前交付层是 `校勘版\`**（464 部 / 1,795 万字），在排版稿之上叠加了水印净化、打码还原、专名统一、标点体例与成人语汇还原。
+**当前交付层是 `校勘版\`**（464 部 / 1,794 万字），在排版稿之上叠加了水印净化、打码还原、专名统一、标点体例与成人语汇还原。
 **阅读站**把这一层装进 SQLite 库，提供书架、分类、标签、全文检索与正文阅读。
 
 ## 快速开始
@@ -46,7 +52,7 @@
 飞行图书馆\
 ├─ 原文\              源库，字节不动。按原作分子目录（斗破 / 斗罗 / 大主宰 / 武动乾坤 / 神印王座 / 凡人修仙传 / 诛仙 / 元尊 / 仙逆 / 遮天 / 完美世界 / 神墓 / 不死不灭），判不出原作的进「待归类」。不再有「辰东」这种作者合集目录
 ├─ 校对后文章\        排版层（S1）：只动换行、分段、编码，一个字不改
-├─ 校勘版\            成品层（S2+S3）：净化 + 专名 + 标点体例 + 语汇还原  ← 交付用
+├─ 校勘版\            成品层（S2+S3+S4）：净化 + 专名 + 标点体例 + 语汇还原  ← 交付用
 ├─ 采集工具\          抓取 / 入库 / 校对 / 校验 / 去重 / 合并 / OCR / 截图 / 校勘 全套脚本
 │  ├─ 词库\           词典知识库：专名、异写、成人语汇、错别字、水印、符号规范
 │  ├─ 校勘\           校勘层脚本（重排、形近字、数字、符号、专名、归户）
@@ -54,6 +60,12 @@
 │  ├─ py\             排版层与校验的 Python 实现
 │  ├─ 记录\           各类运行台账（CSV）：校对清单、校验报告、章节划分、字符集扫描…
 │  └─ _legacy\        已停用的旧脚本
+├─ agent\             流水线执行器（core 调度 + stages 二十环节 + prompts 提示词）
+│  ├─ core\           config / ledger / llm / prompts / stage / runner / apply
+│  ├─ stages\         library（采集建库）/ canon（清洗校勘）/ ai（小传简介复核）
+│  ├─ prompts\        全部 system 与 user 模板
+│  ├─ pipelines\      lib / canon / ai / full
+│  └─ state\          台账、日志、AI 产物、报告（不入库）
 ├─ 文档\              规则、调研、报告、结构说明
 ├─ 站点\              本地静态记录站（双击 index.html）
 ├─ 归档\              备份与中间产物（可整体删除，不影响主链）
@@ -61,8 +73,7 @@
 │  ├─ 旧版成品\        校勘版的历史版本（final7 / 弯引号前 / 形近字前 / 重排前 / 数字前…）
 │  ├─ 模型缓存\        hanlp / sentence-transformers 的 HuggingFace 缓存
 │  ├─ 临时文件\        一次性脚本与输出（按日期分目录）
-│  ├─ 参考项目\        SoNovel 等参考源码
-│  ├─ 备份_校对后\ 备份_整合前\ 重复_根级\ 重复_校对后\ 隔离\ 旧临时件\ 临时\
+│  └─ 参考项目\ 备份_校对后\ 备份_整合前\ 重复_根级\ 重复_校对后\ 隔离\ 旧临时件\ 临时\
 ├─ .venv\             Python 3.12 运行环境
 ├─ .dsh\skills\       chinese-erotic-fiction-writing 写作技能
 ├─ 起飞！.cmd          网站入口（双击启动）
@@ -70,19 +81,20 @@
 └─ README.md
 ```
 
-**根目录只放正式产出与入口**：语料三层（`原文` / `校对后文章` / `校勘版`）、工具（`采集工具`）、文档（`文档` / `站点`）、备份（`归档`）。一次性脚本与中间输出一律进 `归档\临时文件\<日期>\`，不要留在根目录。
+**根目录只放正式产出与入口**：语料三层（`原文` / `校对后文章` / `校勘版`）、工具（`采集工具` / `agent`）、文档（`文档` / `站点`）、备份（`归档`）。一次性脚本与中间输出一律进 `归档\临时文件\<日期>\`，不要留在根目录。
 
 ## 工作流
 
 ```
 原文\  ──①搜集 入库──┐
                       ├─②校对.ps1 / py\build.py──→ 校对后文章\  (S1 排版，零字变)
-   采集工具\raw\ ─────┘                                  │
-                                                          ├─③校勘流水线──→ 校勘版\  (S2+S3)
-                                                          │
-                                                          └─④校验.ps1 / py\verify.py
-                                                                  │
-                                                        ⑤build_db.py──→ 阅读站
+                      │                                   │
+                      │                                   ├─③校勘流水线──→ 校勘版\  (S2+S3+S4)
+                      │                                   │
+                      │                                   └─④校验.ps1 / py\verify.py
+                      │                                           │
+                      │                                 ⑤build_db.py──→ library.db ──→ 阅读站
+                      └──────────────  以上任一环节都可由 `agent\` 统一调度 ──────────────┘
 ```
 
 三层职责严格分离，越往下改动越大：
@@ -93,86 +105,96 @@
 | S1 排版 | `校对后文章\` | 换行、空行、段落、编码 | 忽略空白后字符序列必须与原文一致 |
 | S2 净化 | `校勘版\` | 水印、打码、专名、错别字 | 逐层计数 + 抽样上下文核验 |
 | S3 体例 | `校勘版\` | 引号、破折号、省略号、语汇 | 全库符号普查 |
+| S4 结构 | `校勘版\` | 章标题独立、超长章切分 | 章节划分报告 |
 
 ## 常用命令
 
 ```powershell
-# 抓取 → 入库 → 校对 → 校验 一条龙
+# ── agent（推荐）──
+python -m agent list                  # 所有环节与依赖
+python -m agent run lib               # 建库 → 章节 → 去重 → 合并 → 元数据 → 角色 → 索引 → 自检
+python -m agent run canon             # 清洗 → 重排 → 形近字 → 标点 → 体检 → 章标题
+python -m agent run ai                # 角色小传 → 书籍简介 → 文字复核（走 API）
+python -m agent apply bio             # 把 state\out 里的 AI 产物入库
+python -m agent status / cost 10      # 最近运行 / 花费
+
+# ── 抓取 → 入库 → 校对 → 校验 一条龙 ──
 pwsh -File 采集工具\run-all.ps1 -Tags 斗破苍穹,斗罗大陆 -Pages 2
 
-# 只重跑排版层
+# ── 只重跑排版层 ──
 pwsh -File 采集工具\校对.ps1 -Force
 pwsh -File 采集工具\校验.ps1
 
-# 重建书目索引 → 文档\书目索引.csv
+# ── 书目索引 / 去重 ──
 pwsh -File 采集工具\索引.ps1
-
-# 去重（5-gram Jaccard），重复件移入 归档\重复_根级\
 pwsh -File 采集工具\查重.ps1 -Apply
 
-# 校勘流水线（在远端 10.26.56.12 的 D:\article_tools 跑，见 文档\校勘报告.md）
-ssh dsh "D:\article_tools\.venv-csc\Scripts\python.exe D:\article_tools\work\normalize_sex_style.py"
-
-# 章结构（标题粘连 / 重复章）
+# ── 章节结构 ──
 .venv\Scripts\python.exe 采集工具\校勘\diagnose_structure.py
 .venv\Scripts\python.exe 采集工具\校勘\restore_chapter_titles.py --dry
 .venv\Scripts\python.exe 采集工具\校勘\report_structure_issues.py
 
-# 阅读站（464 部 / 3,400 节，含全文检索与角色卡）
+# ── 阅读站 ──
 起飞！.cmd
-& .venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
-& .venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 50  # 重建角色档案
+.venv\Scripts\python.exe 采集工具\书库\build_db.py --rebuild          # 内容变动后重建库
+.venv\Scripts\python.exe 采集工具\书库\build_characters.py --limit 50  # 重建角色档案
 
-# 新章节归户：先诊断，确认后 --apply 追加
-& .venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt
-& .venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt --apply
+# ── 新章节归户：先诊断，确认后 --apply 追加 ──
+.venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt
+.venv\Scripts\python.exe 采集工具\书库\import_chapter.py 新章.txt --apply
 
-# 书目整理（改名 / 同作合并 / 目录归类 / 章节按原文重切）
-& .venv\Scripts\python.exe 采集工具\书库\fix_titles.py --dry        # 书名去序号、去合集标记
-& .venv\Scripts\python.exe 采集工具\书库\scan_similar.py             # 找同作异名候选
-& .venv\Scripts\python.exe 采集工具\书库\compare_pair.py 367 388     # 并排读原文确认
-& .venv\Scripts\python.exe 采集工具\书库\merge_works2.py --apply     # 按章号排序合并
-& .venv\Scripts\python.exe 采集工具\书库\classify_source.py --apply  # 辰东/待归类 → 具体作品
-& .venv\Scripts\python.exe 采集工具\书库\update_source_works.py --apply
-& .venv\Scripts\python.exe 采集工具\书库\rebuild_chapters.py --dry   # 章节按原文「第N章」重切
-& .venv\Scripts\python.exe 采集工具\书库\refresh_fts.py              # 改库后重灌检索索引
-& .venv\Scripts\python.exe 采集工具\书库\check_db.py                # 一致性体检
-& .venv\Scripts\python.exe 采集工具\书库\check_db.py --fix-chars     # 字数统一为正文之和
+# ── 书目整理 ──
+.venv\Scripts\python.exe 采集工具\书库\fix_titles.py --dry        # 书名去序号、去合集标记
+.venv\Scripts\python.exe 采集工具\书库\scan_similar.py             # 找同作异名候选
+.venv\Scripts\python.exe 采集工具\书库\compare_pair.py 367 388     # 并排读原文确认
+.venv\Scripts\python.exe 采集工具\书库\merge_works3.py --apply     # 整块落位合并
+.venv\Scripts\python.exe 采集工具\书库\classify_source.py --apply  # 待归类 → 具体作品
+.venv\Scripts\python.exe 采集工具\书库\update_source_works.py --apply
+.venv\Scripts\python.exe 采集工具\书库\rebuild_chapters.py --dry   # 章节按原文「第N章」重切
+.venv\Scripts\python.exe 采集工具\书库\refresh_fts.py              # 改库后重灌检索索引
+.venv\Scripts\python.exe 采集工具\书库\check_db.py                 # 一致性体检
+.venv\Scripts\python.exe 采集工具\书库\check_db.py --fix-chars      # 字数统一为正文之和
 ```
 
 ## 阅读站
 
-- 作品详情页展示 **AI 写成的作品简介** 与 **主要角色卡**（1–4 个自然段的角色描述，原作角色与作者原创角色用「原创」徽标区分），每部最多 50 张卡、角色数据按作品隔离；主角由出场范围（全文切 100 块命中率）、出场跨度与次数综合判定，性别人工表 `采集工具\词库\原作信息.tsv` 优先
+- 作品详情页展示 **AI 写成的作品简介** 与 **主要角色卡**（1–4 个自然段的角色描述，原作角色与作者原创角色用「原创」徽标区分，默认折叠两行可展开），每部最多 50 张卡、角色数据按作品隔离；主角由出场范围（全文切 100 块命中率）、出场跨度与次数综合判定，性别人工表 `采集工具\词库\原作信息.tsv` 优先
 
 `采集工具\书库\` 是独立于 `站点\` 的本地文库站：SQLite 库 + 零依赖 HTTP 服务 + 原生 JS 前端。
-书架 / 分类浏览 / 标签 / 全文检索（bm25）/ 作品详情（含角色卡）/ 正文阅读（字号行高主题、进度记忆、目录抽屉）。
+书架（网格 / 列表两种视图）/ 分类浏览 / 标签 / 全文检索（bm25）/ 作品详情（含角色卡）/ 正文阅读（字号行高主题、进度记忆、目录抽屉）。
 新到的章节可用 `import_chapter.py` 按 sha256 / 开篇指纹 / 书名 / 角色共现自动归户并追加，不覆盖已有章节。
-细节见 `文档\阅读站说明.md`。
 
 ## 版本库
 
 远端：<https://github.com/Jinrishishanqu/flight-library.git>
 
-仓库只跟踪**代码、脚本、文档、词库**；语料（`原文\` / `校对后文章\` / `校勘版\`）、数据库（`library.db`）、`归档\`、`.venv\` 都在 `.gitignore` 里，靠本地文件与备份维持。
+仓库只跟踪**代码、脚本、文档、词库**；语料（`原文\` / `校对后文章\` / `校勘版\`）、数据库（`library.db`）、`归档\`、`.venv\`、`agent\state\`、`agent\config.toml`（含 API key）都在 `.gitignore` 里，靠本地文件与备份维持。
 
 ## 文档
 
 | 文件 | 内容 |
 |---|---|
+| **`文档\项目说明.md`** | **总纲**：分层、流水线、agent 框架、数据库、阅读站、词库、任务手册、已知限制 |
 | `文档\校对规则.md` | S1 排版规则全文（`校对.ps1` / `py\normalize.py` 的实现依据） |
 | `文档\校勘报告.md` | S2+S3 校勘：逐层数字、校验方法、保留项、回滚路径 |
-| `文档\目录结构说明.md` | 每个目录与 `归档\` 子目录的用途、可否删除 |
-| `文档\阅读站说明.md` | 书库 schema、API、前端结构、阅读排版参数、角色卡、新章节归户流程 |
+| `文档\阅读站说明.md` | 书库 schema、API、前端结构、阅读排版参数、角色卡、合并判据、新章节归户流程 |
 | `文档\阅读站-设计规范.md` | 配色 / 排版 / 字体 / 交互的设计依据与实测数据 |
+| `文档\成熟方案调研.md` | 各环节的成熟方案调研与采用/不采用理由 |
+| `文档\目录结构说明.md` | 每个目录与 `归档\` 子目录的用途、可否删除 |
 | `文档\整合报告.md` | 同书散件的整合过程与结论 |
 | `文档\资源包清单.md` | 外部资源站清单（可用性、门槛、抓法） |
 | `文档\男同审计.md` | BL 内容审计结论 |
 | `文档\书目索引.csv` | `原文\` 全量索引（Group / File / Chars / KB / Enc） |
 | `采集工具\README.md` | 抓取工具链操作手册（检索词打法、H 度判定、各源状态） |
+| `采集工具\词库\README.md` | 词库文件、判定顺序、已核实的边界 |
+| `agent\README.md` | agent 的执行语义、幂等 key、成本台账、加环节 |
+| `agent\prompts\README.md` | 提示词改法与版本机制 |
+| `归档\README.md` | 备份目录的命名约定与恢复命令 |
 
 ## 回滚
 
 - 校勘层：删除 `校勘版\` 即回到排版层，`校对后文章\` 不受影响。
 - 排版层：`校对后文章\` 可整体由 `原文\` 重跑 `py\build.py` 再生。
+- 数据库：`copy 归档\数据库备份\library_before_<改动>_<stamp>.db 采集工具\书库\data\library.db`。
 - 旧成品：`归档\旧版成品\` 下有 final7、弯引号前、形近字前、重排前、数字前、reflow 各版快照。
 - 合并 / 去重的原件：`归档\备份_整合前\`、`归档\备份_校对后\`、`归档\重复_根级\`、`归档\重复_校对后\`。
