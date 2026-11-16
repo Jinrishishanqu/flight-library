@@ -28,6 +28,11 @@ PROMPT_VER = "v1"
 # ───────────────────────── 公共 ─────────────────────────
 
 def _works_missing(ctx: Ctx, sql: str, limit: int = 50) -> list[dict]:
+    """执行带 `LIMIT ?` 的查询，参数固定为 limit。
+
+    三个 AI 环节都用它取「还缺什么」：缺 bio 的角色、缺简介的作品、
+    待复核的章节。用 SQL 决定工作集而不是 Python 过滤，是为了少读几万行。
+    """
     con = sqlite3.connect(_db(ctx))
     con.row_factory = sqlite3.Row
     try:
@@ -121,8 +126,13 @@ def _run_bio(ctx: Ctx) -> str:
     written = 0
 
     def one(wid: int) -> None:
+        """处理一部作品：把所有缺 bio 的角色塞进同一次请求。
+
+        为什么按「作品」而不是按「角色」分组：同一部书里的角色互相有关系，
+        一次给全文片段能让模型写出「她与谁是什么关系」，省一半 token 又更连贯。
+        """
         nonlocal written
-        chars = by_work[wid][:50]
+        chars = by_work[wid][:50]          # 与 characters 上限一致，防止单次请求过大
         blocks = []
         for c in chars:
             paras = _paras_for(ctx, wid, c["name"])
@@ -159,6 +169,11 @@ def _run_bio(ctx: Ctx) -> str:
 
 
 def _check_bio(ctx: Ctx) -> tuple[bool, str]:
+    """验收：产物里每条 bio ≥60 字、JSON 可解析。
+
+    这条拦的是模型偷懒（只回一句「信息不足」）与写坏 JSON ——
+    两者都会让 apply 静默跳过，等于白花钱。
+    """
     out_dir = _out_dir(ctx)
     files = list(out_dir.glob("w*.json"))
     bad = 0
@@ -184,6 +199,13 @@ bio = Stage(
 
 
 def _bio_input_fp(ctx: Ctx) -> str:
+    """bio 的输入指纹 = 还有多少角色缺 bio。
+
+    为什么不用正文哈希：bio 的输入其实是「哪些角色还没写」，
+    只要这个数字不变，重跑就会产出同一批东西，没必要再花钱。
+    （正文变了但缺 bio 数没变时会漏重算 —— 可接受，因为 bio 只依赖片段，
+    而片段来自 chapters，chapters 变动本身会经 dedupe_key 的代码版本段失效。）
+    """
     con = sqlite3.connect(_db(ctx))
     try:
         n = con.execute(

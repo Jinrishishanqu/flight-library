@@ -83,6 +83,57 @@ agent/
 
 ---
 
+## AI API 怎么配
+
+只有 `config.toml` 的 `[llm]` 一段与一个环境变量，改完立即生效，不用重启任何服务。
+
+**A. OpenAI 官方（最短路径）**
+
+```powershell
+setx OPENAI_API_KEY "sk-..."        # 设完要开新终端
+.\.venv\Scripts\python.exe -m agent run ai bio --dry     # 能打印环节 = 配好了
+```
+
+`base_url` / `model` 保持默认（`https://api.openai.com/v1` / `gpt-4o-mini`）。
+
+**B. 任何 OpenAI 兼容服务**（DeepSeek / 硅基流动 / 智谱 / 本地 vLLM / one-api）
+
+只改 `config.toml` 这四行：
+
+```toml
+base_url = "https://api.deepseek.com/v1"
+model    = "deepseek-chat"
+price_in_per_mtok  = 0.14      # 换成对方的实际价格，否则记账是错的
+price_out_per_mtok = 0.28
+```
+
+`api_key_env` 指向你设的环境变量名即可；也可以直接把 key 写进 `api_key`。
+**唯一的硬要求：对方必须支持 `response_format={"type":"json_schema"}`。**
+只支持 `json_object` 的服务会在 `chat_json()` 处报 400。
+
+**C. 本地模型**
+
+```toml
+base_url = "http://127.0.0.1:8000/v1"
+model    = "你的模型名"
+api_key  = "none"              # vLLM / llama.cpp 不校验 key，但不能留空
+price_in_per_mtok  = 0
+price_out_per_mtok = 0         # 本地不花钱，记 0
+```
+
+**花费与熔断**
+
+- 每笔调用写 `agent/state/ledger.db` 的 `ai_calls`（`tokens_in / tokens_out / cost_usd / ok / attempts / tag`）
+- `python -m agent cost 10` 看最近十次运行各花了多少
+- 按作品归集：`sqlite3 agent/state/ledger.db "SELECT tag,SUM(cost_usd) FROM ai_calls GROUP BY tag ORDER BY 2 DESC LIMIT 20"`
+- 单次运行超过 `max_usd_per_run`（默认 $5）立刻抛 `BudgetExceeded` 停下 ——
+  超支那一笔也会记账（熔断在「记完账之后」），不会出现「钱花了账上没有」
+
+**没配 key 时的行为**
+
+AI 环节会明确报「没有可用的 API key」并失败，不会静默跳过；
+脚本环节完全不受影响，`apply` 也能把已有产物入进库。
+
 ## 幂等：key 由业务定义
 
 ```python

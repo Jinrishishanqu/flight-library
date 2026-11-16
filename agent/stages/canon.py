@@ -25,6 +25,14 @@ def _canon_files(ctx: Ctx) -> list[Path]:
 
 
 def _text_of(p: Path) -> str:
+    """读文本，编码逐个回退。
+
+    为什么不能直接 `read_text(encoding='utf-8')`：`校勘版\\` 里 utf-8 与
+    gb18030 混存（大主宰整个目录都是 gb18030），用单一编码读会得到乱码，
+    后面的「汉字计数」「残留字符统计」就全是错的。
+    顺序有讲究：先试 utf-8（严格解码失败即说明不是），再试 gb18030 ——
+    gb18030 字节流碰巧是合法 utf-8 的概率极低，所以这个顺序不会误判。
+    """
     raw = p.read_bytes()
     for enc in ("utf-8", "utf-8-sig", "gb18030", "utf-16"):
         try:
@@ -128,6 +136,12 @@ def _run_fix_punct(ctx: Ctx) -> str:
 
 
 def _check_fix_punct(ctx: Ctx) -> tuple[bool, str]:
+    """验收：全角 ASCII 与全角引号必须归零。
+
+    这两类是真实存在过的残留（2026-11 全库普查：全角字母数字 632 个散布在
+    60 个文件、全角双引号 575 个在 9 个文件），而它们会直接影响搜索 ——
+    bigram 索引里 `ＮＴＲ` 与 `NTR` 是两个不同的 token。
+    """
     bad = 0
     for p in _canon_files(ctx):
         t = _text_of(p)

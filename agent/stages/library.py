@@ -3,6 +3,25 @@
 
 这一组的共同特征：脚本已经能做到「跑完能回归验证」，所以不花 token。
 每个 Stage 的 check 就是它的验收标准 —— 不过就直接 failed，不许带病往下走。
+判据是「换一批输入重跑，结果是否确定」：这里全为真（同一份原文切出来的章节数、
+同一条 SQL 数出来的行数，每次都一样），所以不该交给模型。
+
+依赖链（needs 只是给人看的顺序说明，真正的依赖在库里）：
+    原文/ ──collect──> 待入库清单
+              └─dedupe_source──> dupes.csv（只提示）
+    校勘版/ ──build_db──> works + chapters
+              ├─chapters──> 按原文「第N章」重划
+              │     ├─dedupe_chapters  章级近重复
+              │     ├─merge_works      同作异名整块合并
+              │     └─fts               全量重灌索引
+              ├─classify_source  待归类/ → 具体作品目录
+              ├─meta             path_source / notes / description
+              └─characters       hanlp 候选 + 清洗 + 主角判定
+                                 └─check  一致性体检
+
+注意 chapters / merge_works 的顺序：merge_works 会把子本内容整块插进主本，
+而 rebuild_chapters 对「有子本的主本」是跳过的（否则会把合并内容抹掉），
+所以两者互不覆盖，但顺序仍按声明来，先重建再合并。
 """
 from __future__ import annotations
 
@@ -107,6 +126,8 @@ def _run_build_db(ctx: Ctx) -> str:
 
 
 def _check_build_db(ctx: Ctx) -> tuple[bool, str]:
+    """验收：库存在且 works 非空。只数「有没有」，不数「对不对」——
+    内容正确性由后面的 check_db.py 环节兜。"""
     if not _db(ctx).exists():
         return False, "数据库不存在"
     con = sqlite3.connect(_db(ctx))
@@ -134,6 +155,9 @@ def _run_chapters(ctx: Ctx) -> str:
 
 
 def _check_chapters(ctx: Ctx) -> tuple[bool, str]:
+    """验收：可见作品里没有「有章节行但正文为空」的节。
+    空正文说明切章把内容吃掉了（历史上 split_chapters 的 TITLE_JUNK 分支
+    曾丢过 5.8 万字），所以这条必须硬性拦截。"""
     con = sqlite3.connect(_db(ctx))
     try:
         empty = con.execute(
@@ -208,6 +232,8 @@ def _run_meta(ctx: Ctx) -> str:
 
 
 def _check_meta(ctx: Ctx) -> tuple[bool, str]:
+    """验收：可见作品都要有 path_source（原文出处）。
+    这条是全库元数据的底线 —— 没有它就无法判断「某篇新文章是不是已有作品的续篇」。"""
     con = sqlite3.connect(_db(ctx))
     try:
         miss = con.execute(
@@ -235,6 +261,8 @@ def _run_characters(ctx: Ctx) -> str:
 
 
 def _check_characters(ctx: Ctx) -> tuple[bool, str]:
+    """验收：每部作品的角色卡 ≤50 张（用户硬要求）。
+    缺 bio 只报告不拦截 —— bio 是 AI 环节的事，脚本环节无权重跑它。"""
     con = sqlite3.connect(_db(ctx))
     try:
         bad = con.execute(

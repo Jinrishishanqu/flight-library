@@ -1,26 +1,56 @@
 # 飞行图书馆 · agent 运行配置
 # 所有相对路径都相对项目根（agent 的上一级）
+#
+# ─────────────────────────────────────────────────────────────────
+# 【AI 调用怎么配】三种情况，选一种改就行，改完不用重启任何服务。
+#
+#  A. 用 OpenAI 官方
+#     1) 设环境变量： setx OPENAI_API_KEY "sk-..."   （开新终端生效）
+#     2) 下面的 base_url / model 保持不动（默认 gpt-4o-mini）
+#     3) 验证： .venv\Scripts\python.exe -m agent run ai bio --dry
+#
+#  B. 用其它 OpenAI 兼容服务（硅基流动 / DeepSeek / 智谱 / 本地 vLLM / one-api）
+#     只改四行：
+#       base_url = "https://api.deepseek.com/v1"      # 对方的 /v1 端点
+#       model    = "deepseek-chat"                    # 对方模型名
+#       price_in_per_mtok / price_out_per_mtok        # 改成本价，否则记账是错的
+#       api_key_env 指向你设的那个环境变量名，或直接写 api_key = "..."
+#     ⚠ 对方必须支持 response_format={"type":"json_schema"}；
+#       只支持 json_object 的服务会让 chat_json 报 400，换服务或改用 json_object。
+#
+#  C. 不想用环境变量
+#     直接写 key（别提交到 git；agent/state 与 config 里的 key 都已在 .gitignore 之外，
+#     提交前务必确认）：
+#       api_key = "sk-..."
+#
+#  花费与熔断：每笔调用按 token × 单价记进 agent/state/ledger.db，
+#  单次运行超 max_usd_per_run 立即抛 BudgetExceeded 停下。
+#  查账： python -m agent cost 10
+#        sqlite3 agent/state/ledger.db "SELECT tag,SUM(cost_usd) FROM ai_calls GROUP BY tag ORDER BY 2 DESC"
+# ─────────────────────────────────────────────────────────────────
 
 [paths]
 root = ".."
-canon = "校勘版"              # 交付层正文
+canon = "校勘版"              # 交付层正文（S2+S3 成品）
 proof = "校对后文章"          # S1 排版层
-source = "原文"               # 冻结源库
+source = "原文"               # 冻结源库，只读
 db = "采集工具/书库/data/library.db"
 state = "state"               # 台账与运行日志（相对 agent/）
 artifacts = "state/artifacts" # AI 产物落盘
 
 [llm]
 # 任意 OpenAI 兼容端点：官方 / 硅基流动 / DeepSeek / 本地 vLLM 都能填
-base_url = "https://api.openai.com/v1"
-model = "gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"      # 从这个环境变量读 key；也可直接写 api_key
-temperature = 0.7
-max_tokens = 3000
-timeout = 120
-max_retries = 3
-concurrency = 6                     # 同时在飞的请求数
+base_url = "https://api.openai.com/v1"     # 换 provider 只改这一行（末尾要带 /v1）
+model = "gpt-4o-mini"                       # 必须支持 json_schema 结构化输出
+api_key_env = "OPENAI_API_KEY"              # 从这个环境变量读 key（推荐）
+# api_key = ""                              # 也可以直接写死；两者都有时以 api_key 为准
+temperature = 0.7                           # 写小传/简介用 0.7；校对类可降到 0.2
+max_tokens = 3000                           # 单次回复上限；bio 一次写 10 个角色够用
+timeout = 120                               # 单次请求超时（秒）
+max_retries = 3                             # 只对 429 / 超时 / 5xx 重试，退避 2s→4s→8s
+concurrency = 6                             # 同时在飞的请求数；被限流就降到 2–3
 # 单价（美元 / 百万 token），用于记账；换成自己用的模型价格
+# 默认值对应 gpt-4o-mini（in 0.15 / out 0.60）。换模型必须同步改，否则账是错的。
 price_in_per_mtok = 0.15
 price_out_per_mtok = 0.60
 # 单次运行的花费上限，超出立即停（0 = 不限）

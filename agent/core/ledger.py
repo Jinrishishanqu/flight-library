@@ -1,10 +1,19 @@
 # -*- coding: utf-8 -*-
-"""台账：每次运行、每个环节、每次 AI 调用都落 SQLite。
+"""台账：每次运行、每个环节、每次 AI 调用、每个产出文件都落进一个 SQLite。
 
 为什么自己记而不靠框架：
-  - 幂等的 key 必须是「业务指纹」（输入文件哈希 + prompt 版本 + 模型 + 参数），
-    框架的缓存只认它自己定义的输入对象；
-  - 成本必须按作品归集、按次运行熔断，这是业务需求，框架不管钱。
+  - 幂等的 key 必须是「业务指纹」（输入哈希 + 提示词版本 + 模型），
+    框架的缓存只认它自己定义的输入对象，认不出「这是同一部作品的同一版正文」；
+  - 成本必须按作品归集、按次运行熔断，这是业务需求，框架不管钱也不会留痕。
+
+四张表：
+  runs       一次流水线执行
+  steps      一次执行里的每个环节（含被幂等跳过的）
+  ai_calls   每次模型调用（token / 钱 / 是否成功 / 重试了几次 / 业务 tag）
+  artifacts  产出文件（路径 + sha256 + 字节数）
+
+查询示例：
+  sqlite3 agent/state/ledger.db "SELECT tag, SUM(cost_usd) FROM ai_calls GROUP BY tag ORDER BY 2 DESC LIMIT 10"
 """
 from __future__ import annotations
 
@@ -16,38 +25,38 @@ from pathlib import Path
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    pipeline    TEXT NOT NULL,
-    status      TEXT NOT NULL,              -- running / ok / failed / aborted
+    pipeline    TEXT NOT NULL,              -- lib / canon / ai / full
+    status      TEXT NOT NULL,              -- running / ok / failed
     started_at  REAL NOT NULL,
     ended_at    REAL,
-    args        TEXT,
-    note        TEXT
+    args        TEXT,                       -- only=/skip=/force=/dry= 原样记录
+    note        TEXT                        -- 收尾时的 ok/skip/fail 计数
 );
 CREATE TABLE IF NOT EXISTS steps (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id      INTEGER NOT NULL,
     stage       TEXT NOT NULL,
     status      TEXT NOT NULL,              -- running / ok / failed / skipped
-    dedupe_key  TEXT,
+    dedupe_key  TEXT,                       -- 幂等依据；hit_ok() 按 status='ok' 命中
     started_at  REAL NOT NULL,
     ended_at    REAL,
     duration    REAL,
-    detail      TEXT,
+    detail      TEXT,                       -- run() 的返回值 + 门禁结论（截断 4000 字）
     log_path    TEXT,
     FOREIGN KEY(run_id) REFERENCES runs(id)
 );
 CREATE TABLE IF NOT EXISTS ai_calls (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id      INTEGER,
-    stage       TEXT,
-    tag         TEXT,                        -- 业务标签，如 work:443 / char:张小凡
+    stage       TEXT,                       -- 哪个环节
+    tag         TEXT,                       -- 业务标签：bio:443 / summary:19 / proof:21457
     model       TEXT,
-    prompt_ver  TEXT,
+    prompt_ver  TEXT,                       -- 提示词版本，改了 prompt 必须 bump
     tokens_in   INTEGER,
     tokens_out  INTEGER,
-    cost_usd    REAL,
-    ok          INTEGER,
-    attempts    INTEGER,
+    cost_usd    REAL,                       -- 按 config 里的单价折算
+    ok          INTEGER,                    -- 0/1；失败的调用也记，用于统计重试率
+    attempts    INTEGER,                    -- 第几次尝试成功
     created_at  REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS artifacts (
@@ -65,11 +74,13 @@ CREATE INDEX IF NOT EXISTS idx_ai_run ON ai_calls(run_id);
 
 
 class Ledger:
+    """台账门面。所有方法都立刻 commit —— 中途崩溃也不能丢已完成步骤的记录。"""
+
     def __init__(self, db: Path):
         db.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(db, timeout=30)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(SCHEMA)
+        self.conn = sqlite3.connect(db, timeout=30)   # timeout：并发写时等锁而不是立刻报错
+        self.conn.row_factory = sqlite3.Row            # 让查询结果能按列名取
+        self.conn.executescript(SCHEMA)                # IF NOT EXISTS，重复打开无害
         self.conn.commit()
 
     # ---------- run ----------
@@ -98,6 +109,7 @@ class Ledger:
         return int(cur.lastrowid)
 
     def end_step(self, step_id: int, status: str, detail: str = "", log_path: str = "") -> None:
+        # duration 由 started_at 反算，不依赖调用方传时间
         row = self.conn.execute(
             "SELECT started_at FROM steps WHERE id=?", (step_id,)
         ).fetchone()
@@ -109,7 +121,10 @@ class Ledger:
         self.conn.commit()
 
     def hit_ok(self, key: str) -> bool:
-        """同 key 曾经成功过 —— 幂等跳过的依据。"""
+        """同 key 曾经成功过 —— 幂等跳过的唯一依据。
+
+        只看 status='ok'：失败或跳过的记录不构成「已经做过这件事」的证据。
+        """
         row = self.conn.execute(
             "SELECT 1 FROM steps WHERE dedupe_key=? AND status='ok' LIMIT 1", (key,)
         ).fetchone()
@@ -117,6 +132,7 @@ class Ledger:
 
     # ---------- ai ----------
     def log_ai(self, run_id, stage, tag, model, prompt_ver, tin, tout, cost, ok, attempts):
+        """记一次模型调用。成功失败都记，失败时 tin/tout 为 0。"""
         self.conn.execute(
             "INSERT INTO ai_calls(run_id,stage,tag,model,prompt_ver,tokens_in,tokens_out,"
             "cost_usd,ok,attempts,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -126,17 +142,20 @@ class Ledger:
         self.conn.commit()
 
     def spent(self, run_id: int) -> float:
+        """本次运行花了多少美元。"""
         row = self.conn.execute(
             "SELECT COALESCE(SUM(cost_usd),0) FROM ai_calls WHERE run_id=?", (run_id,)
         ).fetchone()
         return float(row[0])
 
     def spent_total(self) -> float:
+        """有台账以来的累计花费。"""
         row = self.conn.execute("SELECT COALESCE(SUM(cost_usd),0) FROM ai_calls").fetchone()
         return float(row[0])
 
     # ---------- artifact ----------
     def log_artifact(self, run_id, stage, path: Path, sha: str, size: int):
+        """记一个产出文件的路径与校验和（目前 apply 层还没批量调用，留给溯源用）。"""
         self.conn.execute(
             "INSERT INTO artifacts(run_id,stage,path,sha256,bytes,created_at) VALUES(?,?,?,?,?,?)",
             (run_id, stage, str(path), sha, size, time.time()),
@@ -158,6 +177,7 @@ class Ledger:
 
     @contextmanager
     def tx(self):
+        """事务上下文：要么全成，要么全回滚。批量写时用。"""
         try:
             yield self.conn
             self.conn.commit()
