@@ -43,7 +43,10 @@ def main(argv: list[str] | None = None) -> int:
         cfg = load()
         what = argv[1] if len(argv) > 1 else "bio"
         dry = "--dry" in argv
-        d = cfg.paths.state / "out" / ("bio" if what == "bio" else what)
+        # out 目录名与子命令名不一定相同：文字复核的环节叫 text_proof，
+        # 但命令写成 `apply proof` 更顺口，这里做一次映射。
+        dirname = {"bio": "bio", "summary": "summary", "proof": "text_proof"}.get(what, what)
+        d = cfg.paths.state / "out" / dirname
         fn = {"bio": apply_mod.apply_bio,
               "summary": apply_mod.apply_summary,
               "proof": apply_mod.apply_proof}.get(what)

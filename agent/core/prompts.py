@@ -35,9 +35,14 @@ class Prompts:
             raise FileNotFoundError(f"缺提示词文件：{p}")
         return p.read_text(encoding="utf-8").strip()
 
-    def render(self, name: str, **kw) -> str:
-        """填占位符。用 format 而不是 replace，缺参数会立刻 KeyError 暴露出来。"""
-        return self.text(name).format(**kw)
+    def render(self, tpl: str, **kw) -> str:
+        """填占位符。用 format 而不是 replace，缺参数会立刻 KeyError 暴露出来。
+
+        第一个形参刻意叫 `tpl` 而不是 `name`：模板里常有 `{name}` 这个占位符
+        （比如 bio.block.txt 的角色名），若形参也叫 name 会
+        「got multiple values for argument 'name'」。
+        """
+        return self.text(tpl).format(**kw)
 
     # ---------- 版本 ----------
     def version(self) -> str:

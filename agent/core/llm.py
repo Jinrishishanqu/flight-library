@@ -40,6 +40,15 @@ class Usage:
     cost: float = 0.0
 
 
+def _schema_hint(schema: dict) -> str:
+    """把 JSON Schema 说成一句人话要求，给只支持 json_object 的服务端用。"""
+    return (
+        "只输出一个 JSON 对象，不要解释、不要代码围栏、不要前后缀文字。\n"
+        "它必须严格符合下面的 JSON Schema：\n"
+        + json.dumps(schema, ensure_ascii=False, indent=None)
+    )
+
+
 class LLM:
     """一个 stage 一个实例；内部线程安全（并发时共享同一份 usage 计数）。"""
 
@@ -110,9 +119,12 @@ class LLM:
         """发一次 Chat Completions，返回纯文本。
 
         messages   : [{"role": "system"|"user", "content": "..."}]
-        schema     : 传了就用 response_format=json_schema(strict) 强约束输出结构。
-                     服务端不支持时这里会 400 —— 那种情况下删掉 schema 参数，
-                     靠 parse_json 的容错去剥 ```json 围栏。
+        schema     : 传了就要求结构化输出。具体用哪种约束由 config 的
+                     `[llm].json_mode` 决定：
+                       json_schema —— OpenAI 式强约束（服务端照着 schema 生成）
+                       json_object —— 只保证是 JSON，schema 以文字塞进提示词
+                                      （DeepSeek / 多数兼容服务只支持这个）
+                       none        —— 完全不设约束，全靠 parse_json 兜底
         tag/prompt_ver : 只进台账，不发给模型。
         """
         last_err = None
@@ -124,13 +136,21 @@ class LLM:
                     "temperature": self.cfg.temperature if temperature is None else temperature,
                     "max_tokens": max_tokens or self.cfg.max_tokens,
                 }
-                if schema:
+                if schema and self.cfg.json_mode == "json_schema":
                     # strict=True 要求 schema 里每个 object 都有 additionalProperties: False
                     # 且 required 列全 —— _schema() 已经保证了这一点
                     kwargs["response_format"] = {
                         "type": "json_schema",
                         "json_schema": {"name": "result", "schema": schema, "strict": True},
                     }
+                elif schema and self.cfg.json_mode == "json_object":
+                    # 服务端只认 {"type":"json_object"}（DeepSeek 明确不支持 json_schema，
+                    # 传了直接 400 This response_format type is unavailable now），
+                    # 于是把 schema 当文字要求塞进对话末尾 —— 结构靠提示词约束 + 客户端校验。
+                    kwargs["response_format"] = {"type": "json_object"}
+                    kwargs["messages"] = list(messages) + [
+                        {"role": "system", "content": _schema_hint(schema)}
+                    ]
                 r = self.client.chat.completions.create(**kwargs)
                 text = (r.choices[0].message.content or "").strip()
                 u = r.usage

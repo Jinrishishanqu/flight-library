@@ -21,7 +21,7 @@
 #  C. 不想用环境变量
 #     直接写 key（别提交到 git；agent/state 与 config 里的 key 都已在 .gitignore 之外，
 #     提交前务必确认）：
-#       api_key = "sk-..."
+#       api_key = ""                      # 在这里填你的 key（或改用下面的 api_key_env）
 #
 #  花费与熔断：每笔调用按 token × 单价记进 agent/state/ledger.db，
 #  单次运行超 max_usd_per_run 立即抛 BudgetExceeded 停下。
@@ -42,7 +42,7 @@ artifacts = "state/artifacts" # AI 产物落盘
 # 当前接的是 DeepSeek 官方（OpenAI 兼容端点）
 base_url = "https://api.deepseek.com/v1"   # 换 provider 只改这一行（末尾要带 /v1）
 model = "deepseek-chat"                     # deepseek-chat（V3 通用）或 deepseek-reasoner（R1）
-api_key = "sk-3eaa060d5d9848a3bb595ed2e938fb99"     # 直接写在配置里；已设置则优先于 api_key_env
+api_key = ""                      # 在这里填你的 key（或改用下面的 api_key_env）     # 直接写在配置里；已设置则优先于 api_key_env
 api_key_env = "DEEPSEEK_API_KEY"            # 若想把 key 放环境变量，填这里、留空 api_key
 temperature = 0.7                           # 写小传/简介用 0.7；校对类可降到 0.2
 max_tokens = 3000                           # 单次回复上限；bio 一次写 10 个角色够用
@@ -55,6 +55,10 @@ price_in_per_mtok = 0.28
 price_out_per_mtok = 1.10
 # 单次运行的花费上限，超出立即停（0 = 不限）
 max_usd_per_run = 5.0
+# 结构化输出约束方式。**DeepSeek 只认 json_object**：传 json_schema 会 400
+# 「This response_format type is unavailable now」（已实测）。
+# 换回 OpenAI 官方可改成 json_schema（服务端按 schema 强约束，更稳）。
+json_mode = "json_object"
 
 [run]
 log_dir = "state/logs"

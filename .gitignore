@@ -40,3 +40,7 @@ _tmp_bio/
 _tmp_*
 采集工具/书库/_tmp_*.py
 采集工具/书库/_bio*_dump.py
+
+# agent 的本地配置里有 API key，只提交示例文件
+agent/config.toml
+agent/state/

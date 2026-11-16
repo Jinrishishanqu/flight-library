@@ -65,6 +65,16 @@ class LLMConfig:
     # 设 0 表示不限额
     max_usd_per_run: float = 5.0
 
+    # 结构化输出的约束方式，决定 request 里 response_format 长什么样：
+    #   json_schema —— {"type":"json_schema", ...}，服务端照 schema 生成。
+    #                  OpenAI、部分兼容网关支持。
+    #   json_object —— {"type":"json_object"}，只保证是合法 JSON，
+    #                  schema 以文字塞进对话末尾，靠 parse_json + 人工核对兜底。
+    #                  **DeepSeek 只支持这个**：传 json_schema 会 400
+    #                  「This response_format type is unavailable now」（实测）。
+    #   none        —— 不设约束，纯文本。
+    json_mode: str = "json_schema"
+
     def resolve_key(self) -> str:
         """显式 api_key 优先，其次环境变量。空字符串表示没配。"""
         return self.api_key or os.environ.get(self.api_key_env, "")
