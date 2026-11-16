@@ -197,9 +197,9 @@
   left: 0;
   right: 0;
   display: flex;
-  flex-direction: row-reverse; /* 竖排从右往左读，第一列贴右边 */
+  flex-direction: row; /* 第一段在左，续段往右排 */
   justify-content: center;
-  align-items: flex-start;
+  align-items: flex-start; /* 两列顶端对齐，不出现「第二列低一个字」 */
   gap: 2px;
   overflow: hidden;
 }
@@ -211,10 +211,16 @@
   letter-spacing: .1em;
   color: var(--cloth-fg);
   line-height: 1.3;
+  display: block;
+  height: max-content;
+  margin: 0;
+  padding: 0;
 }
 @media (max-width: 900px) {
   .cover .stack .col { font-size: 13px; }
 }
+/* 列序从左到右；第二列整体下沉一个字，做出错落的手写封面感 */
+.cover .stack .col:nth-child(2) { margin-top: 1em; }
 .cover .badge {
   position: absolute;
   bottom: 8px; left: 8px;
