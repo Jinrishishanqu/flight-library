@@ -47,54 +47,12 @@ const clothOf = title => {
   for (const ch of title) s = (s * 31 + ch.codePointAt(0)) >>> 0;
   return `var(--cloth-${(s % 6) + 1})`;
 };
-// 封面竖排书名：按「一列最多几个字」算列数与每列字数，再交给 CSS 横排。
-// 竖排 + column-count 会按列数均分高度（先填一列再换列做不到），所以分列在 JS 里做。
-// 换列时优先落在分隔符之后（· / 、 之 ： - — 数字 等），但不早于半列。
+// 封面书名横排：整串交给 CSS 自动换行（最多四行），不再手动分列。
 const coverText = title => title.replace(/[《》「」\s]/g, '');
-const CAP = () => (window.innerWidth > 900 ? 9 : 6);
-const SEPS = '·／/、：:-—－–~～｜|。，,；;.．';
-const DIGIT = /[0-9０-９]/;
-const HAN = /[\u4e00-\u9fff]/;
-function isSepAt(s, i) {
-  const c = s[i], nb = s[i + 1] || '';
-  if (SEPS.includes(c) || c === '之') return true;
-  if (DIGIT.test(c) && !DIGIT.test(nb)) return true;      // 数字串末尾
-  if (HAN.test(c) && DIGIT.test(nb)) return true;         // 数字之前
-  return false;
-}
-// 第一列的断点：在 [半列, 整列] 里取最后一个分隔符之后；没有就按整列断。
-function firstCut(s, per) {
-  const lo = Math.max(2, Math.floor(per / 2));
-  let cut = per;
-  for (let i = lo; i <= per && i < s.length - 1; i++) if (isSepAt(s, i)) cut = i + 1;
-  return cut;
-}
 
 function coverEl(w, withBadge = true) {
-  const t = coverText(w.title);
-  const cap = CAP();
-  const n = Math.min(4, Math.max(1, Math.ceil(t.length / cap)));
-  const per = Math.ceil(t.length / n);
-  const cols = [];
-  let rest = t;
-  if (n > 1 && rest.length > per) {
-    const cut = firstCut(rest, per);
-    cols.push(rest.slice(0, cut));
-    rest = rest.slice(cut);
-    const per2 = Math.ceil(rest.length / Math.max(1, n - 1));
-    for (let i = 0; i < rest.length; i += per2) cols.push(rest.slice(i, i + per2));
-    // 后续列若以分隔符开头（如「.7.1最终版」），把符号挪回上一列末尾
-    for (let k = 1; k < cols.length; k++) {
-      while (cols[k].length > 1 && SEPS.includes(cols[k][0])) {
-        cols[k - 1] += cols[k][0];
-        cols[k] = cols[k].slice(1);
-      }
-    }
-  } else {
-    cols.push(rest);
-  }
   const cv = h('div', { class: 'cover', style: `background:${clothOf(w.title)}` },
-    h('div', { class: 'stack' }, ...cols.map(c => h('span', { class: 'col' }, c))));
+    h('div', { class: 'stack' }, h('span', { class: 'col' }, coverText(w.title))));
   if (withBadge) cv.append(h('span', { class: 'badge' }, fmtWan(w.char_count) + ' 字'));
   return cv;
 }
