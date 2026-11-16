@@ -219,8 +219,8 @@
 @media (max-width: 900px) {
   .cover .stack .col { font-size: 13px; }
 }
-/* 列序从左到右；第二列整体下沉一个字，做出错落的手写封面感 */
-.cover .stack .col:nth-child(2) { margin-top: 1em; }
+/* 列序从左到右；第二列起每一列都比前一列低一个字，做出错落的手写封面感 */
+.cover .stack .col:nth-child(n+2) { margin-top: 1em; }
 .cover .badge {
   position: absolute;
   bottom: 8px; left: 8px;
