@@ -54,14 +54,23 @@ class LLM:
                 f"或在 agent/config.toml 的 [llm].api_key 直接填写。"
             )
         from openai import OpenAI, DefaultHttpxClient
+        import httpx2
 
         self.cfg = cfg
+        # 连接池交给默认值：并发由 LLM.map() 的线程池控制，
+        # 这里传 limits=None 会在 httpx2 里 AttributeError（'NoneType' has no
+        # attribute 'max_connections'），所以只放宽连接数上限，不传 None。
         self.client = OpenAI(
             api_key=key,
             base_url=cfg.base_url,               # ← 换 provider 只靠这一行
             timeout=cfg.timeout,
             max_retries=0,                       # 重试自己控制：SDK 的自动重试看不到 token 记账
-            http_client=DefaultHttpxClient(limits=None),   # 交给外面的线程池控并发
+            http_client=DefaultHttpxClient(
+                limits=httpx2.Limits(
+                    max_connections=max(8, cfg.concurrency * 2),
+                    max_keepalive_connections=max(4, cfg.concurrency),
+                )
+            ),
         )
         self.ledger = ledger          # core.ledger.Ledger，可为 None（比如手动试跑）
         self.run_id = run_id

@@ -39,20 +39,20 @@ state = "state"               # 台账与运行日志（相对 agent/）
 artifacts = "state/artifacts" # AI 产物落盘
 
 [llm]
-# 任意 OpenAI 兼容端点：官方 / 硅基流动 / DeepSeek / 本地 vLLM 都能填
-base_url = "https://api.openai.com/v1"     # 换 provider 只改这一行（末尾要带 /v1）
-model = "gpt-4o-mini"                       # 必须支持 json_schema 结构化输出
-api_key_env = "OPENAI_API_KEY"              # 从这个环境变量读 key（推荐）
-# api_key = ""                              # 也可以直接写死；两者都有时以 api_key 为准
+# 当前接的是 DeepSeek 官方（OpenAI 兼容端点）
+base_url = "https://api.deepseek.com/v1"   # 换 provider 只改这一行（末尾要带 /v1）
+model = "deepseek-chat"                     # deepseek-chat（V3 通用）或 deepseek-reasoner（R1）
+api_key = "sk-000000000000000000000000"     # 直接写在配置里；已设置则优先于 api_key_env
+api_key_env = "DEEPSEEK_API_KEY"            # 若想把 key 放环境变量，填这里、留空 api_key
 temperature = 0.7                           # 写小传/简介用 0.7；校对类可降到 0.2
 max_tokens = 3000                           # 单次回复上限；bio 一次写 10 个角色够用
 timeout = 120                               # 单次请求超时（秒）
 max_retries = 3                             # 只对 429 / 超时 / 5xx 重试，退避 2s→4s→8s
 concurrency = 6                             # 同时在飞的请求数；被限流就降到 2–3
-# 单价（美元 / 百万 token），用于记账；换成自己用的模型价格
-# 默认值对应 gpt-4o-mini（in 0.15 / out 0.60）。换模型必须同步改，否则账是错的。
-price_in_per_mtok = 0.15
-price_out_per_mtok = 0.60
+# 单价（美元 / 百万 token），用于记账。DeepSeek 官方现价（以官网为准，变价要改）：
+#   输入 缓存未命中 $0.28 / 命中 $0.07，输出 $1.10
+price_in_per_mtok = 0.28
+price_out_per_mtok = 1.10
 # 单次运行的花费上限，超出立即停（0 = 不限）
 max_usd_per_run = 5.0
 
