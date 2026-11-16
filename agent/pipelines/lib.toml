@@ -1,0 +1,12 @@
+# 文库：从校勘版重建数据库到自检
+# 只动库，不碰文本 —— 改完数据模型或想重算章节/角色/索引时跑这条
+stages = [
+  "build_db",
+  "chapters",
+  "dedupe_chapters",
+  "merge_works",
+  "meta",
+  "characters",
+  "fts",
+  "check",
+]

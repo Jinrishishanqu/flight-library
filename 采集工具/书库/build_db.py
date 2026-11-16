@@ -71,7 +71,12 @@ CHAP_HEAD = re.compile(
 )
 # 「第N卷」= 分卷标记；卷内章号各自从 1 开始，排序时必须先看卷号
 VOL_RE = re.compile(r"第[0-9零一二三四五六七八九十百千两]+卷")
-MIN_BODY = 200        # 真章正文短于这个字数 → 视为目录行/章尾注，并入下一节
+MIN_BODY = 200        # 任何一节正文短于这个字数 → 视为目录行/章尾注，并入相邻节
+MAX_SPLIT = 8         # 一个真章最多细分几节；超出说明「这一章」其实是多章合体
+GAP_MIN_COVER = 0.55  # 章标记覆盖的正文比例 ≥ 此值 → 部分采用（洞里的正文按字数切）
+# 章标记行里出现这些词，说明那是正文句而不是标题：
+#   「第三回的时候他忍不住了」「第四回的时候嘴角溢出一条白的」
+TITLE_JUNK = re.compile(r"的时候|之后|以前|忍不住|起来了|却发现|才知道|[的了着过]了$|[，,、]$")
 # 题材关键词 → 标签
 TROPE_HINTS = {
     "双修": "双修", "调教": "调教", "绿帽": "NTR", "ntr": "NTR", "NTR": "NTR",
@@ -175,6 +180,9 @@ def split_title(line: str) -> tuple[str, str]:
         t, rest = tail[:24].strip(), tail[24:].strip()
     else:
         t, rest = tail.strip(), ""
+    # 「第三回的时候他忍不住了」这类是正文句被行首截断当成标题 —— 退回正文
+    if TITLE_JUNK.search(t) or len(t) > 30:
+        return "", line.strip()
     return (head + t).strip(), rest
 
 
@@ -254,18 +262,6 @@ def _sort_key(nos, chunks, i):
             return (10 ** 9, 0, i)
         return (10 ** 8, 0, i)
     return (0, n, i)
-    nos = [chap_no(base_title(t)) if r else None for t, r, _ in chunks]
-    known = [n for n in nos if n]
-    if len(known) < 3:
-        return chunks
-    if any(VOL_RE.search(t) for t, _, _ in chunks):
-        return chunks                # 分卷结构，原文顺序即正确
-    if len(known) != len(set(known)):
-        return chunks                # 章号重复，排序会搅碎
-    if all(a is None or b is None or a <= b for a, b in zip(nos, nos[1:])):
-        return chunks                # 已经有序
-    idx = sorted(range(len(chunks)), key=lambda i: (nos[i] is None, nos[i] or 0, i))
-    return [chunks[i] for i in idx]
 
 
 def compact_short(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, str]]:
@@ -284,8 +280,12 @@ def compact_short(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, st
     for title, is_real, body in chunks:
         if is_real and VOL_RE.search(title) and len(body) < MIN_BODY:
             vol = title.strip()
+            # 卷名行本身不建节，但它脚下那点正文不能丢（实测 #443 每卷丢几十字）
+            if body:
+                carry += ("\n" + body) if carry else body
             continue                      # 卷名挂起，等下一节
-        if is_real and len(body) < MIN_BODY:
+        if len(body) < MIN_BODY:
+            # 不分真假章节：硬切出来的空壳节同样该并掉
             carry += ("\n" + body) if carry else body
             continue
         if carry:
@@ -296,7 +296,9 @@ def compact_short(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, st
             # 章号回退 → 已进入下一卷，但卷名行还没出现（原文常把卷名
             # 放在该卷第一章之后），此时不硬标上一卷的名字
             vol = ""
-        if vol:
+        if vol and not title.startswith(vol):
+            # 标题本身已带卷名时不重复叠加（实测 #189
+            # 「第五卷、三大龙王驭龙皇 · 第五卷、三大龙王驭龙皇」）
             title = f"{vol} · {title}" if title else vol
             # 卷名不在此清空：同一卷内的后续章节继续带前缀，
             # 直到出现下一个「第N卷」行（原文常有卷名行重复，自然无害）
@@ -312,11 +314,33 @@ def compact_short(chunks: list[tuple[str, int, str]]) -> list[tuple[str, int, st
     return out
 
 
+def split_real(title: str, body: str, target: int) -> list[tuple[str, int, str]]:
+    """真章过长时细分。续节标题带「（i/n）」，让目录能看出同属一章。
+
+    一个章被切出超过 MAX_SPLIT 节，说明原文这一「章」其实是多章合体
+    （实测 #220 第12章切出 17 节，每节 5000+ 字）—— 那样按章读已经无意义，
+    仍保留标题但标明序号，读者至少知道自己在第几段。
+    """
+    if len(body) <= MAX_REAL_CHAPTER:
+        return [(title, 1, body)]
+    parts = split_long(body, target)
+    n = len(parts)
+    if n <= 1:
+        return [(title, 1, body)]
+    if n > MAX_SPLIT:
+        return [(f"{title}（{i + 1}/{n}）", 1, p) for i, p in enumerate(parts)]
+    return [(title if i == 0 else f"{title}（{i + 1}/{n}）", 1, p) for i, p in enumerate(parts)]
+
+
 def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
     """返回 [(title, is_real, content)]。
 
-    优先按原文自带的「第N章」等标记切分；只有当标记覆盖不完整
-    （平均章长过大、或最大间隔远超中位间隔）时才退化为按字数切。
+    三段式判定：
+    1) 标记完整（complete）→ 全部按原文真标题切
+    2) 标记只覆盖一部分（partial）→ 有标记处用真标题，洞里的正文按字数切，
+       插回原来的位置（实测 #185 有 49 处行首「第N章」却因一处大洞被整本否掉）
+    3) 标记不足 → 全按字数切，但**行首的章标记仍然认**，不再被吞进上一节
+       （实测 #303 第2节末尾吊着「第58章生命重塑与深泉极乐（下）」）
     """
     marks = list(CHAPTER_RE.finditer(text))
     if len(marks) >= 3:
@@ -325,7 +349,18 @@ def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
         avg = body_len / len(marks)
         med = sorted(gaps)[len(gaps) // 2] if gaps else 0
         complete = avg <= MIN_AVG and (not gaps or max(gaps) <= max(GAP_RATIO * med, GAP_ABS))
-        if complete:
+        covered = sum(
+            (marks[i + 1].start() if i + 1 < len(marks) else len(text)) - marks[i].end()
+            for i in range(len(marks))
+        )
+        # 平均章长必须仍像「章」（≤ MIN_AVG），否则说明那些标记是卷级的：
+        # 实测 #303 有 20 个标记、138 万字，平均 6.9 万字，覆盖虽满但不是章
+        partial = (
+            (not complete)
+            and avg <= MIN_AVG
+            and covered / max(1, body_len) >= GAP_MIN_COVER
+        )
+        if complete or partial:
             out: list[tuple[str, int, str]] = []
             # 第一个章标记之前的内容（卷首语、简介、残缺前言）不能丢
             pre = text[: marks[0].start()].strip()
@@ -333,8 +368,11 @@ def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
                 if len(pre) <= MAX_REAL_CHAPTER:
                     out.append(("开篇", 0, pre))
                 else:
-                    for k, part in enumerate(split_long(pre, target)):
-                        out.append(("开篇" if k == 0 else f"开篇·续{k + 1}", 0, part))
+                    parts = split_long(pre, target)
+                    n = len(parts)
+                    for k, part in enumerate(parts):
+                        t = "开篇" if n == 1 else f"开篇（{k + 1}/{n}）"
+                        out.append((t, 0, part))
             for i, m in enumerate(marks):
                 start = m.end()
                 end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
@@ -342,6 +380,17 @@ def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
                 body = text[start:end]
                 # 标题可能和正文粘在一行，split_title 会把多余部分还给正文
                 title, rest = split_title(raw_line)
+                if not title:
+                    # 「第三回的时候他忍不住了…」这类正文句：整行连同这一章的正文
+                    # 一起挂到上一节末尾，不新建章。**必须把 text[start:end] 一并带上**
+                    # —— 否则这一整章的正文被 continue 吃掉（实测 #220 丢 5.8 万字）。
+                    junk = (raw_line + "\n" + text[start:end]).strip()
+                    if out:
+                        t, r, b = out[-1]
+                        out[-1] = (t, r, (b + "\n" + junk).strip())
+                    else:
+                        out.append(("开篇", 0, junk))
+                    continue
                 if rest:
                     body = rest + "\n" + body
                 body = body.strip()
@@ -351,46 +400,81 @@ def split_chapters(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
                     if VOL_RE.search(title):
                         out.append((title, 1, ""))
                     continue
-                if len(body) <= MAX_REAL_CHAPTER:
-                    out.append((title, 1, body))
-                else:
-                    for k, part in enumerate(split_long(body, target)):
-                        t = title if k == 0 else f"{title}·续{k + 1}"
-                        out.append((t, 1, part))
+                out.extend(split_real(title, body, target))
             if len(out) >= 3:
                 return order_by_chapter(compact_short(out))
 
-    lines = text.split("\n")
-    chunks, buf, size, idx = [], [], 0, 0
-    for ln in lines:
+    return by_words(text, target)
+
+
+def by_words(text: str, target: int = 6000) -> list[tuple[str, int, str]]:
+    """按字数切；行首出现章标记时保留为节标题，不再被吞进上一节。"""
+    chunks: list[tuple[str, int, str]] = []
+    buf: list[str] = []
+    size = 0
+    idx = 0
+    pending = ""
+
+    def flush() -> None:
+        nonlocal buf, size, idx, pending
+        if not buf:
+            pending = ""
+            return
+        body = "\n".join(buf).strip()
+        if pending:
+            t, rest = split_title(pending)
+            if t:
+                if rest:
+                    body = rest + "\n" + body
+                chunks.append((t, 1, body))
+            else:
+                idx += 1
+                chunks.append((f"第{idx}节", 0, (rest + "\n" + body).strip() if rest else body))
+            pending = ""
+        else:
+            idx += 1
+            chunks.append((f"第{idx}节", 0, body))
+        buf, size = [], 0
+
+    for ln in text.split("\n"):
         s = ln.strip()
         if not s:
             continue
-        if len(s) > target:
-            pieces = split_long(s, target)
-        else:
-            pieces = [s]
-        for piece in pieces:
+        if CHAPTER_RE.match(ln):
+            flush()
+            pending = s
+            continue
+        for piece in (split_long(s, target) if len(s) > target else [s]):
             if size + len(piece) > target and buf:
-                idx += 1
-                chunks.append((f"第{idx}节", 0, "\n".join(buf)))
-                buf, size = [], 0
+                flush()
             buf.append(piece)
             size += len(piece)
-    if buf:
-        idx += 1
-        chunks.append((f"第{idx}节", 0, "\n".join(buf)))
-    return chunks
+    flush()
+    return compact_short(chunks)
+
+
+TOKEN_RE = re.compile(r"[\u4e00-\u9fff]+|[A-Za-z0-9]+")
 
 
 def bigram_cn(text: str) -> str:
-    """汉字 bigram，用于 FTS。非汉字作分隔，避免标点组合污染索引。"""
+    """汉字 bigram + 拉丁数字词，用于 FTS。
+
+    必须把「汉字串」与「字母数字串」分开取词，不能用一个字符类混着切：
+    `[^\\u4e00-\\u9fffA-Za-z0-9]+` 会把「NTR情节」当成一整段（首字符不是汉字），
+    结果输出 "ntr情节" 这种既不是 bigram 也不是词的 token —— 实测 22 章正文含
+    NTR 却只有 3 章能搜到，其余 19 章全是这种粘连。
+
+    单字不进索引（每章都存会让 token 数翻倍），查询侧用前缀 `乳*` 命中「乳房」等。
+    """
     out = []
-    for seg in re.split(r"[^\u4e00-\u9fff]+", text):
-        n = len(seg)
-        if n < 2:
-            continue
-        out.extend(seg[i : i + 2] for i in range(n - 1))
+    for m in TOKEN_RE.finditer(text or ""):
+        seg = m.group(0)
+        if "\u4e00" <= seg[0] <= "\u9fff":
+            n = len(seg)
+            if n >= 2:
+                out.extend(seg[i : i + 2] for i in range(n - 1))
+        else:
+            out.append(seg.lower())
     return " ".join(out)
 
 

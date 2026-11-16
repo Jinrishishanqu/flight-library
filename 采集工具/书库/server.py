@@ -33,14 +33,21 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 
 def to_fts_query(q: str) -> str:
-    """中文查询 → bigram 短语。"""
-    segs = re.findall(r"[\u4e00-\u9fff]+", q)
+    """中文查询 → bigram 短语；单字与拉丁词按原样查。
+
+    与 build_db.bigram_cn 保持同一口径，否则索引里有、查询侧却被丢掉
+    （实测：单字「乳」2248 章、拉丁词 NTR/SM/3P 100+ 章都搜不到）。
+    """
     phrases = []
-    for s in segs:
-        if len(s) < 2:
-            continue
-        bg = [s[i : i + 2] for i in range(len(s) - 1)]
-        phrases.append('"' + " ".join(bg) + '"')
+    for seg in re.findall(r"[\u4e00-\u9fff]+", q):
+        if len(seg) < 2:
+            # 单字：索引里没有单字 token（每章都存会膨胀一倍），用前缀匹配
+            # 「乳*」能命中「乳房」「乳肉」「乳尖」等所有以它开头的 bigram
+            phrases.append(seg + "*")
+        else:
+            phrases.append('"' + " ".join(seg[i : i + 2] for i in range(len(seg) - 1)) + '"')
+    for seg in re.findall(r"[A-Za-z0-9]+", q):
+        phrases.append('"' + seg.lower() + '"')      # 拉丁/数字词
     return " AND ".join(phrases)
 
 
@@ -51,8 +58,8 @@ def db() -> sqlite3.Connection:
 
 
 def snippet(text: str, q: str, width: int = 48) -> str:
-    """在原文里定位关键词，取上下文。"""
-    for kw in re.findall(r"[\u4e00-\u9fff]{2,}", q):
+    """在原文里定位关键词，取上下文。单字也定位（否则「乳」会退化成取开头）。"""
+    for kw in re.findall(r"[\u4e00-\u9fff]{1,}|[A-Za-z0-9]+", q):
         i = text.find(kw)
         if i >= 0:
             a, b = max(0, i - width), min(len(text), i + len(kw) + width)
@@ -279,7 +286,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _search(self, con, q):
         kw = q.get("q", "").strip()
-        if len(kw) < 2:
+        if not kw:
             return {"total": 0, "items": [], "q": kw}
         fq = to_fts_query(kw)
         if not fq:

@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_db import (  # noqa: E402
     CHAPTER_RE, load_text, split_chapters, split_long, bigram_cn,
-    MIN_AVG, GAP_RATIO, GAP_ABS, MAX_REAL_CHAPTER,
+    MIN_AVG, GAP_RATIO, GAP_ABS, MAX_REAL_CHAPTER, GAP_MIN_COVER,
 )
 
 HERE = Path(__file__).resolve().parent
@@ -34,7 +34,14 @@ def analyze(text: str):
     ratio = (max(gaps) / max(med, 1)) if gaps else 0
     if avg > MIN_AVG:
         return ("按字数切", len(marks), avg, ratio, f"平均章长 {avg:.0f} 字 > {MIN_AVG}，标记只覆盖局部")
+    covered = sum(
+        (marks[i + 1].start() if i + 1 < len(marks) else len(text)) - marks[i].end()
+        for i in range(len(marks))
+    )
     if gaps and max(gaps) > max(GAP_RATIO * med, GAP_ABS):
+        if covered / max(1, body_len) >= GAP_MIN_COVER:
+            return ("按原文分章（部分）", len(marks), avg, ratio,
+                    f"标记断裂但覆盖 {covered / body_len:.0%}，洞内按字数切")
         return ("按字数切", len(marks), avg, ratio, f"最大间隔是中位的 {ratio:.1f} 倍，标记断裂")
     return ("按原文分章", len(marks), avg, ratio, "")
 

@@ -47,11 +47,20 @@ const clothOf = title => {
   for (const ch of title) s = (s * 31 + ch.codePointAt(0)) >>> 0;
   return `var(--cloth-${(s % 6) + 1})`;
 };
-const coverText = title => title.replace(/[《》「」\s]/g, '').slice(0, 6);
+// 封面竖排书名：按「一列最多几个字」算列数与每列字数，再交给 CSS 横排。
+// 竖排 + column-count 会按列数均分高度（先填一列再换列做不到），所以分列在 JS 里做。
+const coverText = title => title.replace(/[《》「」\s]/g, '');
+const CAP = () => (window.innerWidth > 900 ? 9 : 6);
 
 function coverEl(w, withBadge = true) {
+  const t = coverText(w.title);
+  const cap = CAP();
+  const n = Math.min(4, Math.max(1, Math.ceil(t.length / cap)));
+  const per = Math.ceil(t.length / n);
+  const cols = [];
+  for (let i = 0; i < t.length && cols.length < n; i += per) cols.push(t.slice(i, i + per));
   const cv = h('div', { class: 'cover', style: `background:${clothOf(w.title)}` },
-    h('div', { class: 'stack' }, coverText(w.title)));
+    h('div', { class: 'stack' }, ...cols.map(c => h('span', { class: 'col' }, c))));
   if (withBadge) cv.append(h('span', { class: 'badge' }, fmtWan(w.char_count) + ' 字'));
   return cv;
 }

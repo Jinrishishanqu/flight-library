@@ -1,0 +1,59 @@
+# 飞行图书馆 · agent 运行配置
+# 所有相对路径都相对项目根（agent 的上一级）
+
+[paths]
+root = ".."
+canon = "校勘版"              # 交付层正文
+proof = "校对后文章"          # S1 排版层
+source = "原文"               # 冻结源库
+db = "采集工具/书库/data/library.db"
+state = "state"               # 台账与运行日志（相对 agent/）
+artifacts = "state/artifacts" # AI 产物落盘
+
+[llm]
+# 任意 OpenAI 兼容端点：官方 / 硅基流动 / DeepSeek / 本地 vLLM 都能填
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"      # 从这个环境变量读 key；也可直接写 api_key
+temperature = 0.7
+max_tokens = 3000
+timeout = 120
+max_retries = 3
+concurrency = 6                     # 同时在飞的请求数
+# 单价（美元 / 百万 token），用于记账；换成自己用的模型价格
+price_in_per_mtok = 0.15
+price_out_per_mtok = 0.60
+# 单次运行的花费上限，超出立即停（0 = 不限）
+max_usd_per_run = 5.0
+
+[run]
+log_dir = "state/logs"
+keep_days = 30
+# 幂等：同一 stage + 同一输入指纹就不再跑。改代码/改 prompt 会让 key 变，自然重跑
+idempotent = true
+
+[stages]
+# 记录每段的处理方式（实际值以 stages/*.py 里 Stage.kind 为准，这里只做速查）
+#   script  规则能可靠覆盖，直接调现有脚本
+#   ai      必须读上下文才能判，走 API
+#   hybrid  脚本先跑，AI 只处理脚本判不了的疑难样本
+collect = "script"
+dedupe_source = "script"
+clean = "script"
+reflow = "script"
+fix_glyph = "script"
+fix_punct = "script"
+restore_titles = "script"
+build_db = "script"
+chapters = "script"
+dedupe_chapters = "script"
+merge_works = "script"
+classify_source = "script"
+meta = "script"
+characters = "script"
+fts = "script"
+check = "script"
+audit_chars = "hybrid"
+text_proof = "hybrid"
+bio = "ai"
+summary = "ai"

@@ -191,16 +191,29 @@
   background: rgba(255, 255, 255, .06);
 }
 .cover .stack {
+  position: absolute;
+  top: 9%;
+  bottom: 17%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: row-reverse; /* 竖排从右往左读，第一列贴右边 */
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  overflow: hidden;
+}
+.cover .stack .col {
   writing-mode: vertical-rl;
   text-orientation: upright;
   font-family: var(--f-serif);
   font-size: 15px;
-  letter-spacing: .12em;
+  letter-spacing: .1em;
   color: var(--cloth-fg);
-  line-height: 1.35;
-  max-height: calc(100% - 32px);
-  overflow: hidden;
-  padding-bottom: 8px;
+  line-height: 1.3;
+}
+@media (max-width: 900px) {
+  .cover .stack .col { font-size: 13px; }
 }
 .cover .badge {
   position: absolute;

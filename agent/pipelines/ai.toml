@@ -1,0 +1,9 @@
+# AI 环节：只跑需要模型的部分
+# 前置数据必须在库里（bio 依赖 characters，summary 依赖 meta）
+stages = [
+  "bio",
+  "summary",
+  "text_proof",
+]
+# 建议先小批量试：把 max_usd_per_run 调小，或用 --dry 看会调多少次
+budget_hint = "先在 config.toml 把 max_usd_per_run 设成 0.5 试一轮"

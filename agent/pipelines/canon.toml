@@ -1,0 +1,10 @@
+# 校勘：校对后文章 → 校勘版
+# 全是确定性的字符级处理，跑完 compare 字数不变即通过
+stages = [
+  "clean",
+  "reflow",
+  "fix_glyph",
+  "fix_punct",
+  "audit_chars",
+  "restore_titles",
+]
