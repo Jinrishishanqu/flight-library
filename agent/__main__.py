@@ -16,9 +16,21 @@ from __future__ import annotations
 
 import sys
 
-from .core import apply as apply_mod
-from .core.config import load
-from .core.runner import Runner, main as runner_main
+# 两种启动方式都要能用：
+#   python -m agent ...            作为包运行（推荐，cwd 在项目根）
+#   python agent\__main__.py ...   直接跑文件 —— 此时没有父包，相对导入会报
+#                                  ImportError: attempted relative import with no known parent package
+# 所以先试相对导入，失败就把项目根塞进 sys.path 再按绝对包名导入。
+try:
+    from .core import apply as apply_mod
+    from .core.config import load
+    from .core.runner import Runner, main as runner_main
+except ImportError:                              # pragma: no cover - 仅直接运行时走这里
+    from pathlib import Path as _Path
+    sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+    from agent.core import apply as apply_mod
+    from agent.core.config import load
+    from agent.core.runner import Runner, main as runner_main
 
 
 def main(argv: list[str] | None = None) -> int:

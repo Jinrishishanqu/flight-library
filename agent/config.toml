@@ -42,7 +42,7 @@ artifacts = "state/artifacts" # AI 产物落盘
 # 当前接的是 DeepSeek 官方（OpenAI 兼容端点）
 base_url = "https://api.deepseek.com/v1"   # 换 provider 只改这一行（末尾要带 /v1）
 model = "deepseek-chat"                     # deepseek-chat（V3 通用）或 deepseek-reasoner（R1）
-api_key = "sk-000000000000000000000000"     # 直接写在配置里；已设置则优先于 api_key_env
+api_key = "sk-3eaa060d5d9848a3bb595ed2e938fb99"     # 直接写在配置里；已设置则优先于 api_key_env
 api_key_env = "DEEPSEEK_API_KEY"            # 若想把 key 放环境变量，填这里、留空 api_key
 temperature = 0.7                           # 写小传/简介用 0.7；校对类可降到 0.2
 max_tokens = 3000                           # 单次回复上限；bio 一次写 10 个角色够用
