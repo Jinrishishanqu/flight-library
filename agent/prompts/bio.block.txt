@@ -1,0 +1,2 @@
+角色：{name}（{role}，{gender}，出现 {mentions} 次）
+{paras}

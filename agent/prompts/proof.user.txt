@@ -1,0 +1,4 @@
+章节：《{work_title}》/ {title}
+
+正文：
+{body}

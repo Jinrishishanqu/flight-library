@@ -18,11 +18,14 @@ import re
 import sqlite3
 from pathlib import Path
 
+from ..core.prompts import P
 from ..core.stage import Ctx, Stage
 from .library import _db
 
-# prompt 版本：改了下面的提示词就加一，幂等 key 随之变化，旧结果自动失效
-PROMPT_VER = "v1"
+# 提示词不在这里：全部在 agent/prompts/*.txt。
+# 版本号也不再手写 —— P.version() 是提示词目录的内容哈希，改了任何一个 .txt
+# 它就会变，进而让幂等 key 失效、下次运行自动重跑。
+# （旧的 PROMPT_VER = "v1" 常量已删除：忘了 bump 就改不动结果，是最难查的坑。）
 
 
 # ───────────────────────── 公共 ─────────────────────────
@@ -62,12 +65,6 @@ def _schema(props: dict, required: list[str]) -> dict:
 
 
 # ───────────────────────── 角色 bio ─────────────────────────
-
-BIO_SYSTEM = (
-    "你在为一个私人中文成人同人文库写角色小传。读者是这部小说的读者，"
-    "他想在目录旁看到「这个人是谁、在这本书里干了什么」。"
-    "只依据给出的原文片段写，不编造设定、不评价文笔、不分条列点。"
-)
 
 BIO_SCHEMA = _schema(
     {
@@ -138,23 +135,20 @@ def _run_bio(ctx: Ctx) -> str:
             paras = _paras_for(ctx, wid, c["name"])
             if not paras:
                 continue
-            blocks.append(
-                f"角色：{c['name']}（{c['role']}，{c['gender'] or '不明'}，"
-                f"出现 {c['mentions']} 次）\n" + "\n".join(paras)
-            )
+            # 单个角色的素材块也走模板（bio.block.txt），改格式不用动 Python
+            blocks.append(P.render(
+                "bio.block",
+                name=c["name"], role=c["role"], gender=c["gender"] or "不明",
+                mentions=c["mentions"], paras="\n".join(paras),
+            ))
         if not blocks:
             return
-        user = (
-            f"作品：《{chars[0]['work_title']}》\n\n"
-            + "\n\n---\n\n".join(blocks)
-            + "\n\n为上面每个角色写 1–3 段连贯的小传（每人 120–260 字），"
-              "只写他在本书里的身份、做过的事、与谁的关系、说话与行事的样子。"
-              "成人向内容照实叙述，不必回避。不要复述原文句子，不要加标题或字段名。"
-        )
+        user = P.render("bio.user", title=chars[0]["work_title"],
+                        blocks="\n\n---\n\n".join(blocks))
         data = llm.chat_json(
-            [{"role": "system", "content": BIO_SYSTEM},
+            [{"role": "system", "content": P.text("bio.system")},
              {"role": "user", "content": user}],
-            BIO_SCHEMA, tag=f"bio:{wid}", prompt_ver=PROMPT_VER,
+            BIO_SCHEMA, tag=f"bio:{wid}", prompt_ver=P.version(),
         )
         items = [x for x in (data.get("items") or [])
                  if isinstance(x.get("bio"), str) and len(x["bio"]) >= 60]
@@ -199,12 +193,11 @@ bio = Stage(
 
 
 def _bio_input_fp(ctx: Ctx) -> str:
-    """bio 的输入指纹 = 还有多少角色缺 bio。
+    """bio 的输入指纹 = 缺 bio 的角色数 + 提示词版本。
 
     为什么不用正文哈希：bio 的输入其实是「哪些角色还没写」，
     只要这个数字不变，重跑就会产出同一批东西，没必要再花钱。
-    （正文变了但缺 bio 数没变时会漏重算 —— 可接受，因为 bio 只依赖片段，
-    而片段来自 chapters，chapters 变动本身会经 dedupe_key 的代码版本段失效。）
+    带上 P.version() 是关键 —— 改一个字提示词，指纹就变，旧结果不再算数。
     """
     con = sqlite3.connect(_db(ctx))
     try:
@@ -213,7 +206,7 @@ def _bio_input_fp(ctx: Ctx) -> str:
         ).fetchone()[0]
     finally:
         con.close()
-    return f"missing={n}"
+    return f"missing={n}|p{P.version()}"
 
 
 bio.fingerprint = _bio_input_fp
@@ -250,17 +243,13 @@ def _run_summary(ctx: Ctx) -> str:
         finally:
             con.close()
         text = "\n".join((r[0] or "")[:1500] for r in head)[:4000]
-        user = (
-            f"作品：《{w['title']}》　原作：{w['source_work'] or '原创'}　"
-            f"篇幅：{w['char_count']} 字\n\n开头节选：\n{text}\n\n"
-            "写一段 140–220 字的简介：这本书讲什么、谁和谁、主要看点是什么。"
-            "平实叙述，不剧透结局，不用「本文」「本章」这类词。"
-            "另外给 5–8 个标签（每个 2–4 字，题材/玩法/关系向）。"
-        )
+        user = P.render("summary.user", title=w["title"],
+                        source_work=w["source_work"] or "原创",
+                        chars=w["char_count"], head=text)
         data = llm.chat_json(
-            [{"role": "system", "content": "你在为一个私人成人同人文库写书目简介。"},
+            [{"role": "system", "content": P.text("summary.system")},
              {"role": "user", "content": user}],
-            SUMMARY_SCHEMA, tag=f"summary:{w['id']}", prompt_ver=PROMPT_VER,
+            SUMMARY_SCHEMA, tag=f"summary:{w['id']}", prompt_ver=P.version(),
         )
         (out_dir / f"w{w['id']}.json").write_text(
             json.dumps({"work_id": w["id"], **data}, ensure_ascii=False, indent=1),
@@ -270,11 +259,25 @@ def _run_summary(ctx: Ctx) -> str:
     return f"生成 {len(todo)} 部"
 
 
+def _summary_input_fp(ctx: Ctx) -> str:
+    """简介的输入指纹 = 缺简介的作品数 + 提示词版本。理由同 bio。"""
+    con = sqlite3.connect(_db(ctx))
+    try:
+        n = con.execute(
+            "SELECT COUNT(*) FROM works WHERE merged_into IS NULL "
+            "AND (summary_ai IS NULL OR summary_ai='')"
+        ).fetchone()[0]
+    finally:
+        con.close()
+    return f"missing={n}|p{P.version()}"
+
+
 summary = Stage(
     name="summary",
     kind="ai",
     run=_run_summary,
     needs=["meta"],
+    fingerprint=_summary_input_fp,
     description="为缺 AI 简介的作品写 140–220 字简介与标签",
 )
 
@@ -288,22 +291,13 @@ PROOF_SCHEMA = _schema(
     ["issues"],
 )
 
-PROOF_SYSTEM = (
-    "你是中文校对员。给定一段成人向同人小说正文，只找三类问题："
-    "①明显的错别字（同音、形近）②专名前后不一致（人名/地名/招式名写法不同）"
-    "③标点或排版残留（重复标点、残留符号）。"
-    "不要改写文风，不要润色，不要因为露骨内容提意见。"
-    "每处给出原文片段 before（≤12 字）、改法 after（≤12 字）、一句话理由 why。"
-    "没有把握就不要报。"
-)
-
 
 def _run_text_proof(ctx: Ctx) -> str:
     """抽样复核：只查库里「字数骤降 / 可疑字符」的样本，不做全量。"""
     rows = _works_missing(
         ctx,
-        "SELECT c.id, c.work_id, c.title, c.content FROM chapters c "
-        "JOIN works w ON w.id = c.work_id "
+        "SELECT c.id, c.work_id, c.title, c.content, w.title AS work_title "
+        "FROM chapters c JOIN works w ON w.id = c.work_id "
         "WHERE w.merged_into IS NULL AND length(c.content) BETWEEN 800 AND 4000 "
         "ORDER BY c.work_id, c.idx LIMIT ?",
     )
@@ -316,9 +310,11 @@ def _run_text_proof(ctx: Ctx) -> str:
     def one(r: dict) -> None:
         nonlocal found
         data = llm.chat_json(
-            [{"role": "system", "content": PROOF_SYSTEM},
-             {"role": "user", "content": r["content"][:3000]}],
-            PROOF_SCHEMA, tag=f"proof:{r['id']}", prompt_ver=PROMPT_VER,
+            [{"role": "system", "content": P.text("proof.system")},
+             {"role": "user", "content": P.render(
+                 "proof.user", work_title=r.get("work_title") or "", title=r["title"],
+                 body=r["content"][:3000])}],
+            PROOF_SCHEMA, tag=f"proof:{r['id']}", prompt_ver=P.version(),
         )
         issues = [x for x in (data.get("issues") or [])
                   if x.get("before") and x.get("after") and x["before"] != x["after"]]
